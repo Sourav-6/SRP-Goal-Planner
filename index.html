@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Financial Freedom Planner | SRP Prime Wealth</title>
+    <meta name="theme-color" content="#060b18" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="assets/images/SRP-logo-square.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="assets/css/FP_styles.css?v=2.2" />
+</head>
+
+<body>
+    <!-- MOBILE PWA APP BAR --> 
+    <header class="pwa-app-bar">
+        <a href="index.html" class="pwa-logo-wrap">
+            <img src="assets/images/SRP-logo-rectangle.jpeg" alt="SRP Prime Wealth" class="pwa-logo-img" />
+            <span class="pwa-brand-pill">Freedom PWA</span>
+        </a>
+        <div class="pwa-nav-actions">
+            <button class="pwa-btn-icon" onclick="resetCalculatorDefaults()" title="Reset to Defaults" aria-label="Reset Defaults">↺</button>
+            <a href="https://wa.me/917561805630" target="_blank" class="pwa-btn-wa" title="WhatsApp Advisory">
+                💬 Advisor
+            </a>
+        </div>
+    </header>
+
+    <!-- APP CONTAINER -->
+    <main id="fp-app">
+
+        <!-- STEP 1: LEAD CAPTURE MODAL / ONBOARDING -->
+        <div id="fp-step-1" class="fp-step active">
+            <div class="fp-lead-box">
+                <div class="fp-lead-badge">✨ Free Financial Blueprint</div>
+                <h2>Plan Your Financial Independence</h2>
+                <p>Unlock the interactive retirement simulator, calculate your freedom age, and project your wealth trajectory.</p>
+                <form id="fp-lead-form">
+                    <div class="fp-input-group">
+                        <label for="lead-name">Your Full Name</label>
+                        <input type="text" id="lead-name" name="name" placeholder="E.g. Rahul Sharma" required />
+                    </div>
+                    <div class="fp-input-group">
+                        <label for="lead-phone">WhatsApp / Phone Number</label>
+                        <input type="tel" id="lead-phone" name="phone" placeholder="E.g. 98765 43210" required />
+                    </div>
+                    <input type="hidden" name="source" value="FP-PWA">
+                    <input type="hidden" name="message" value="Financial Freedom PWA Access">
+
+                    <button type="submit" class="fp-btn-primary">Unlock Interactive Planner →</button>
+                </form>
+                <p class="fp-disclaimer">🔒 Your information is confidential with SRP Prime Wealth. We never spam.</p>
+            </div>
+        </div>
+
+        <!-- STEP 2: PLANNER UI -->
+        <div id="fp-step-2" class="fp-step">
+
+            <!-- REAL-TIME LIVE RETIREMENT SNAPSHOT (HERO KPI CARD) -->
+            <div class="fp-hero-kpi" id="live-hero-kpi">
+                <div class="kpi-header">
+                    <div class="kpi-title">
+                        <span class="pulse-dot"></span> Live Freedom Snapshot
+                    </div>
+                    <div id="kpi-freedom-status" class="kpi-freedom-badge badge-success">
+                        🎉 Safe till Age 100+
+                    </div>
+                </div>
+
+                <div class="kpi-grid">
+                    <div class="kpi-metric">
+                        <div class="kpi-metric-lbl">Target Corpus at Ret.</div>
+                        <div class="kpi-metric-val highlight-cyan" id="kpi-ret-corpus">₹ 4.82 Cr</div>
+                    </div>
+                    <div class="kpi-metric">
+                        <div class="kpi-metric-lbl">Monthly Pension Needed</div>
+                        <div class="kpi-metric-val highlight-emerald" id="kpi-monthly-pension">₹ 40,000</div>
+                    </div>
+                    <div class="kpi-metric">
+                        <div class="kpi-metric-lbl">Years to Freedom</div>
+                        <div class="kpi-metric-val" id="kpi-years-left">20 Yrs</div>
+                    </div>
+                    <div class="kpi-metric">
+                        <div class="kpi-metric-lbl">Total SIP Invested</div>
+                        <div class="kpi-metric-val" id="kpi-total-invested">₹ 1.98 Cr</div>
+                    </div>
+                </div>
+
+                <div class="kpi-progress-bar">
+                    <div class="kpi-progress-fill" id="kpi-timeline-bar" style="width: 50%;"></div>
+                </div>
+                <div class="kpi-timeline-info">
+                    <span id="kpi-bar-start">Age 40 (Now)</span>
+                    <span id="kpi-bar-mid">Retire @ 60</span>
+                    <span id="kpi-bar-end">Freedom: Life</span>
+                </div>
+            </div>
+
+            <!-- SEGMENTED CATEGORY TABS -->
+            <nav class="fp-nav-tabs" aria-label="Planner Sections">
+                <button class="fp-tab-btn active" onclick="scrollToCard('card-profile', this)">👤 Profile</button>
+                <button class="fp-tab-btn" onclick="scrollToCard('card-investments', this)">💰 Investments</button>
+                <button class="fp-tab-btn" onclick="scrollToCard('card-assumptions', this)">📈 Growth & Inflation</button>
+                <button class="fp-tab-btn" onclick="scrollToCard('card-goals', this)">🎯 Life Goals</button>
+            </nav>
+
+            <div class="fp-planner-wrapper">
+                <div class="fp-cards-container">
+
+                    <!-- CARD 1: PROFILE -->
+                    <section class="fp-card" id="card-profile">
+                        <div class="fp-card-header">
+                            <h3 class="fp-card-title"><span class="icon">👤</span> Personal Profile</h3>
+                        </div>
+
+                        <!-- Current Age -->
+                        <div class="fp-control-group">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Current Age
+                                    <span class="fp-control-hint">Your age today</span>
+                                </div>
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-age', -1)">−</button>
+                                    <span class="fp-val-display" id="disp-age">40 Yrs</span>
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-age', 1)">+</button>
+                                </div>
+                                <input type="number" id="inp-age" value="40" min="18" max="70" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-age" value="40" min="18" max="70" class="fp-slider">
+                            </div>
+                            <div class="fp-chips-group">
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-age', 25)">25</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-age', 30)">30</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-age', 35)">35</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-age', 40)">40</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-age', 45)">45</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-age', 50)">50</button>
+                            </div>
+                        </div>
+
+                        <!-- Retirement Age -->
+                        <div class="fp-control-group">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Retirement Age
+                                    <span class="fp-control-hint">Age to achieve freedom</span>
+                                </div>
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-ret-age', -1)">−</button>
+                                    <span class="fp-val-display" id="disp-ret-age">60 Yrs</span>
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-ret-age', 1)">+</button>
+                                </div>
+                                <input type="number" id="inp-ret-age" value="60" min="30" max="80" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-ret-age" value="60" min="30" max="80" class="fp-slider">
+                            </div>
+                            <div class="fp-chips-group">
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-ret-age', 50)">50</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-ret-age', 55)">55</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-ret-age', 58)">58</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-ret-age', 60)">60</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-ret-age', 65)">65</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- CARD 2: INVESTMENTS -->
+                    <section class="fp-card" id="card-investments">
+                        <div class="fp-card-header">
+                            <h3 class="fp-card-title"><span class="icon">💰</span> Current Investments</h3>
+                        </div>
+
+                        <!-- Existing Corpus -->
+                        <div class="fp-control-group">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Existing Corpus
+                                    <span class="fp-control-hint">Savings, MF, Stocks, PF today</span>
+                                </div>
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-initial-corpus', -100000)">−</button>
+                                    <span class="fp-val-display" id="disp-initial-corpus">₹ 10.00 Lakh</span>
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-initial-corpus', 100000)">+</button>
+                                </div>
+                                <input type="number" id="inp-initial-corpus" value="1000000" min="0" max="50000000" step="100000" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-initial-corpus" value="1000000" min="0" max="50000000" step="100000" class="fp-slider">
+                            </div>
+                            <div class="fp-chips-group">
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-initial-corpus', 0)">₹0</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-initial-corpus', 500000)">₹5 Lakh</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-initial-corpus', 1000000)">₹10 Lakh</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-initial-corpus', 2500000)">₹25 Lakh</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-initial-corpus', 5000000)">₹50 Lakh</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-initial-corpus', 10000000)">₹1 Crore</button>
+                            </div>
+                        </div>
+
+                        <!-- Initial SIP -->
+                        <div class="fp-control-group">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Monthly SIP Investment
+                                    <span class="fp-control-hint">Current monthly commitment</span>
+                                </div>
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-initial-sip', -5000)">−</button>
+                                    <span class="fp-val-display" id="disp-initial-sip">₹ 50,000 / mo</span>
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-initial-sip', 5000)">+</button>
+                                </div>
+                                <input type="number" id="inp-initial-sip" value="50000" min="0" max="500000" step="5000" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-initial-sip" value="50000" min="0" max="500000" step="5000" class="fp-slider">
+                            </div>
+                            <div class="fp-chips-group">
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-initial-sip', 10000)">₹10k</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-initial-sip', 25000)">₹25k</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-initial-sip', 50000)">₹50k</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-initial-sip', 75000)">₹75k</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-initial-sip', 100000)">₹1 Lakh</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-initial-sip', 200000)">₹2 Lakh</button>
+                            </div>
+                        </div>
+
+                        <!-- SIP Step-Up -->
+                        <div class="fp-control-group">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Annual SIP Step-Up (%)
+                                    <span class="fp-control-hint">Increase with annual salary hikes</span>
+                                </div>
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-stepup', -0.5)">−</button>
+                                    <span class="fp-val-display" id="disp-stepup">5.0% / yr</span>
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-stepup', 0.5)">+</button>
+                                </div>
+                                <input type="number" id="inp-stepup" value="5" min="0" max="25" step="0.5" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-stepup" value="5" min="0" max="25" step="0.5" class="fp-slider">
+                            </div>
+                            <div class="fp-chips-group">
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-stepup', 0)">0% (Fixed)</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-stepup', 5)">5%</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-stepup', 8)">8%</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-stepup', 10)">10%</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-stepup', 15)">15%</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- CARD 3: ASSUMPTIONS -->
+                    <section class="fp-card" id="card-assumptions">
+                        <div class="fp-card-header">
+                            <h3 class="fp-card-title"><span class="icon">📈</span> Growth & Inflation</h3>
+                        </div>
+
+                        <!-- Pre-Retirement IRR -->
+                        <div class="fp-control-group">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Pre-Retirement Return (IRR)
+                                    <span class="fp-control-hint">Equity & hybrid growth rate</span>
+                                </div>
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-pre-irr', -0.5)">−</button>
+                                    <span class="fp-val-display" id="disp-pre-irr">13.5% p.a.</span>
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-pre-irr', 0.5)">+</button>
+                                </div>
+                                <input type="number" id="inp-pre-irr" value="13.5" min="6" max="20" step="0.5" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-pre-irr" value="13.5" min="6" max="20" step="0.5" class="fp-slider">
+                            </div>
+                            <div class="fp-chips-group">
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-pre-irr', 11)">11% (Conservative)</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-pre-irr', 13.5)">13.5% (Balanced)</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-pre-irr', 15)">15% (Aggressive)</button>
+                            </div>
+                        </div>
+
+                        <!-- Post-Retirement IRR -->
+                        <div class="fp-control-group">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Post-Retirement Return
+                                    <span class="fp-control-hint">Conservative debt/SWP portfolio</span>
+                                </div>
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-post-irr', -0.5)">−</button>
+                                    <span class="fp-val-display" id="disp-post-irr">8.0% p.a.</span>
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-post-irr', 0.5)">+</button>
+                                </div>
+                                <input type="number" id="inp-post-irr" value="8" min="4" max="15" step="0.5" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-post-irr" value="8" min="4" max="15" step="0.5" class="fp-slider">
+                            </div>
+                            <div class="fp-chips-group">
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-post-irr', 7)">7%</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-post-irr', 8)">8%</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-post-irr', 9)">9%</button>
+                            </div>
+                        </div>
+
+                        <!-- Inflation Rate -->
+                        <div class="fp-control-group">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Expected Inflation Rate
+                                    <span class="fp-control-hint">Long-term cost-of-living rise</span>
+                                </div>
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-inflation', -0.5)">−</button>
+                                    <span class="fp-val-display" id="disp-inflation">7.0% p.a.</span>
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-inflation', 0.5)">+</button>
+                                </div>
+                                <input type="number" id="inp-inflation" value="7" min="3" max="12" step="0.5" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-inflation" value="7" min="3" max="12" step="0.5" class="fp-slider">
+                            </div>
+                            <div class="fp-chips-group">
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-inflation', 6)">6%</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-inflation', 7)">7%</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-inflation', 8)">8%</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- CARD 4: RETIREMENT EXPENSE & GOALS -->
+                    <section class="fp-card" id="card-goals">
+                        <div class="fp-card-header">
+                            <h3 class="fp-card-title"><span class="icon">🎯</span> Retirement Expenses & Goals</h3>
+                        </div>
+
+                        <!-- Current Expense -->
+                        <div class="fp-control-group">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Monthly Living Expenses Today
+                                    <span class="fp-control-hint">Basis for retirement lifestyle</span>
+                                </div>
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-expense', -5000)">−</button>
+                                    <span class="fp-val-display" id="disp-expense">₹ 40,000 / mo</span>
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-expense', 5000)">+</button>
+                                </div>
+                                <input type="number" id="inp-expense" value="40000" min="10000" max="500000" step="5000" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-expense" value="40000" min="10000" max="500000" step="5000" class="fp-slider">
+                            </div>
+                            <div class="fp-chips-group">
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-expense', 25000)">₹25k</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-expense', 40000)">₹40k</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-expense', 60000)">₹60k</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-expense', 100000)">₹1 Lakh</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-expense', 150000)">₹1.5 Lakh</button>
+                            </div>
+                        </div>
+
+                        <!-- Pension Delay -->
+                        <div class="fp-control-group">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Pension / SWP Delay
+                                    <span class="fp-control-hint">Delay withdrawals after retirement</span>
+                                </div>
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-pension-delay', -1)">−</button>
+                                    <span class="fp-val-display" id="disp-pension-delay">0 Yrs</span>
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-pension-delay', 1)">+</button>
+                                </div>
+                                <input type="number" id="inp-pension-delay" value="0" min="0" max="15" step="1" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-pension-delay" value="0" min="0" max="15" step="1" class="fp-slider">
+                            </div>
+                        </div>
+
+                        <!-- Solver Mode -->
+                        <div class="fp-control-group">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Analysis Mode
+                                    <span class="fp-control-hint">Standard or reverse goal solve</span>
+                                </div>
+                            </div>
+                            <select id="inp-solver-mode" onchange="toggleExhaustionAge()" class="fp-select">
+                                <option value="normal">Standard Projection</option>
+                                <option value="solve-lumpsum">Calculate Lumpsum Required</option>
+                                <option value="solve-sip">Calculate SIP Required</option>
+                            </select>
+                        </div>
+
+                        <!-- Target Exhaustion Age -->
+                        <div class="fp-control-group" id="group-exhaustion-age" style="display: none;">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Target Exhaustion Age
+                                    <span class="fp-control-hint">Corpus lasts till this age</span>
+                                </div>
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-exhaustion-expected', -1)">−</button>
+                                    <span class="fp-val-display" id="disp-exhaustion-expected">100 Yrs</span>
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-exhaustion-expected', 1)">+</button>
+                                </div>
+                                <input type="number" id="inp-exhaustion-expected" value="100" min="70" max="120" step="1" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-exhaustion-expected" value="100" min="70" max="120" step="1" class="fp-slider">
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- CARD 5: SPECIFIC GOALS & EVENTS -->
+                    <section class="fp-card" id="card-events">
+                        <div class="fp-events-header">
+                            <h3 class="fp-card-title"><span class="icon">✨</span> Life Goals & Milestones</h3>
+                            <button type="button" class="fp-btn-add-goal" onclick="addEventRow()">+ Add Life Goal</button>
+                        </div>
+                        <p style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 12px;">
+                            Add major events like Child Education, Buying a Home, Marriage, or Legacy Wealth.
+                        </p>
+                        <div class="fp-events-container" id="events-container">
+                            <!-- Event rows injected here -->
+                        </div>
+                    </section>
+
+                </div>
+
+                <!-- STICKY BOTTOM ACTION BAR -->
+                <div class="fp-bottom-bar">
+                    <button class="fp-btn-primary fp-btn-sticky" onclick="generateFreedomReport()">
+                        📊 View Detailed Year-by-Year Breakdown →
+                    </button>
+                </div>
+
+                <!-- DETAILED REPORT VIEW -->
+                <div id="fp-report-container" class="fp-report-hidden">
+                    <div style="display: flex; gap: 12px; margin-bottom: 16px; margin-top: 24px;">
+                        <button onclick="downloadFreedomPDF()" id="btn-download-top" class="fp-btn-primary" style="background: var(--gradient-emerald); box-shadow: 0 4px 20px var(--accent-emerald-glow);">
+                            📄 Download Official PDF Report
+                        </button>
+                    </div>
+
+                    <div class="fp-report-sheet" id="fp-report-sheet">
+                        <div class="fp-report-header">
+                            <div>
+                                <h2>GOAL PLANNING BLUEPRINT</h2>
+                                <p id="report-lead-details" style="color: #64748b; font-size: 13px; font-weight: 500;"></p>
+                            </div>
+                            <div class="fp-report-logo">
+                                <img src="assets/images/SRP-logo-rectangle.jpeg" alt="SRP Prime Wealth" style="max-height: 38px;">
+                            </div>
+                        </div>
+
+                        <div class="fp-report-summary-grid" id="report-summary">
+                            <!-- Populated via JS -->
+                        </div>
+
+                        <div class="fp-table-wrapper">
+                            <table class="fp-data-table" id="report-table">
+                                <!-- Populated via JS -->
+                            </table>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 12px; margin-top: 20px; margin-bottom: 40px;">
+                        <button onclick="downloadFreedomPDF()" class="fp-btn-primary" style="background: var(--gradient-emerald); box-shadow: 0 4px 20px var(--accent-emerald-glow);">
+                            📄 Download Official PDF Report
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- CLEAN MOBILE FOOTER -->
+    <footer class="pwa-footer">
+        <div class="pwa-footer-links">
+            <a href="../index.html">Main Website</a>
+            <span>•</span>
+            <a href="https://wa.me/917561805630" target="_blank">Contact Advisor</a>
+            <span>•</span>
+            <a href="javascript:void(0)" onclick="clearLeadData()">Switch User</a>
+        </div>
+        <p>© 2026 SRP Prime Wealth • AMFI Registered Mutual Fund Distributor</p>
+        <p style="margin-top: 4px; font-size: 10.5px;">Mutual fund investments are subject to market risks. Read all scheme related documents carefully.</p>
+    </footer>
+
+    <!-- SAFELY POSITIONED WHATSAPP BUTTON -->
+    <a href="https://wa.me/917561805630" target="_blank" class="pwa-wa-float" aria-label="Chat on WhatsApp" title="WhatsApp Advisory">
+        <svg width="26" height="26" viewBox="0 0 32 32" fill="white" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 3C9.373 3 4 8.373 4 15c0 2.385.668 4.61 1.832 6.5L4 29l7.697-1.82A12.94 12.94 0 0 0 16 28c6.627 0 12-5.373 12-12S22.627 3 16 3zm5.844 16.844c-.246.692-1.435 1.322-1.972 1.374-.508.05-1.03.071-3.316-.69-2.775-.934-4.558-3.756-4.696-3.93-.137-.172-1.11-1.474-1.11-2.81s.702-1.993.95-2.27c.248-.275.54-.344.72-.344l.518.01c.166.007.39-.063.61.466.228.543.773 1.875.84 2.012.068.137.113.297.023.48-.09.183-.136.297-.272.457-.136.16-.286.358-.408.48-.136.137-.277.285-.12.558.158.274.703 1.158 1.51 1.876 1.037.924 1.912 1.21 2.185 1.346.274.137.433.114.593-.069.16-.183.685-.8.868-1.074.182-.274.365-.228.616-.137.25.09 1.59.75 1.864.887.274.137.456.205.524.32.068.115.068.664-.178 1.357z" />
+        </svg>
+    </a>
+
+    <!-- SCRIPTS -->
+    <script src="assets/js/vendor/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="assets/js/FP_main.js?v=2.2"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then((registration) => {
+                    registration.update();
+                    console.log('ServiceWorker registered & updated:', registration.scope);
+                }).catch((error) => {
+                    console.log('ServiceWorker registration failed:', error);
+                });
+            });
+        }
+    </script>
+</body>
+
+</html>

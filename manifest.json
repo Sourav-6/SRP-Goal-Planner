@@ -1,0 +1,23 @@
+{
+  "name": "Financial Freedom Planner",
+  "short_name": "Goal Planner",
+  "description": "Your personalized blueprint for financial freedom.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1a2d5a",
+  "theme_color": "#1a2d5a",
+  "icons": [
+    {
+      "src": "assets/images/SRP-logo-square.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/images/SRP-logo-square.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
