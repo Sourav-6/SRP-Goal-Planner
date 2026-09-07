@@ -136,13 +136,13 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     if (statusEl) {
         if (!exhaustionAge || exhaustionAge >= 100) {
             statusEl.className = 'kpi-freedom-badge badge-success';
-            statusEl.innerText = '🎉 Safe till Age 100+';
+            statusEl.innerText = 'Fully Funded (Age 100+)';
         } else if (exhaustionAge > retAge) {
             statusEl.className = 'kpi-freedom-badge badge-warning';
-            statusEl.innerText = `⚠️ Lasts till Age ${exhaustionAge}`;
+            statusEl.innerText = `Funded till Age ${exhaustionAge}`;
         } else {
             statusEl.className = 'kpi-freedom-badge badge-warning';
-            statusEl.innerText = `⚠️ Underfunded at Retirement`;
+            statusEl.innerText = `Retirement Shortfall`;
         }
     }
 
@@ -237,7 +237,7 @@ function syncControlState(id, val) {
     // 5. If sticky button was on Download, reset it
     const stickyBtn = document.querySelector('.fp-btn-sticky');
     if (stickyBtn && stickyBtn.innerHTML.includes('Download')) {
-        stickyBtn.innerHTML = '📊 View Detailed Year-by-Year Breakdown →';
+        stickyBtn.innerHTML = 'View Detailed Cash Flow Projection &rarr;';
         stickyBtn.onclick = () => window.generateFreedomReport();
     }
 }
@@ -248,7 +248,7 @@ function updateSliderVisual(slider) {
     const val = parseFloat(slider.value) || 0;
     if (max - min === 0) return;
     const pct = ((val - min) / (max - min)) * 100;
-    slider.style.background = `linear-gradient(to right, #00d2ff 0%, #3a7bd5 ${pct}%, rgba(255, 255, 255, 0.1) ${pct}%)`;
+    slider.style.background = `linear-gradient(to right, #1d68bd 0%, #1d68bd ${pct}%, #e2e8f0 ${pct}%)`;
 }
 
 // ==========================================================================
@@ -400,7 +400,7 @@ window.addEventRow = function addEventRow() {
         <div class="ev-grid">
             <div class="ev-row-top">
                 <input type="text" class="ev-name" placeholder="Goal Name (e.g. Higher Edu / House / Car)" style="font-weight:600; flex:1;" value="Life Goal #${id + 1}">
-                <button type="button" class="ev-del-btn" onclick="this.closest('.event-row').remove(); window.updateLiveFreedomSnapshot();" title="Remove Goal">✕</button>
+                <button type="button" class="ev-del-btn" onclick="this.closest('.event-row').remove(); window.updateLiveFreedomSnapshot();" title="Remove Goal" aria-label="Remove Goal">&#10005;</button>
             </div>
             <div class="ev-grid-fields">
                 <div>
@@ -816,7 +816,7 @@ window.generateFreedomReport = function generateFreedomReport() {
 
     const stickyBtn = document.querySelector('.fp-btn-sticky');
     if (stickyBtn) {
-        stickyBtn.innerHTML = '📄 Download Official PDF Report';
+        stickyBtn.innerHTML = 'Download Comprehensive PDF Report';
         stickyBtn.onclick = () => window.downloadFreedomPDF();
     }
 

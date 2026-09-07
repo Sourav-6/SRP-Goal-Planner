@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Financial Freedom Planner | SRP Prime Wealth</title>
-    <meta name="theme-color" content="#060b18" />
+    <meta name="theme-color" content="#ffffff" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="assets/images/SRP-logo-square.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,7 +13,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet" />
-    <link rel="stylesheet" href="assets/css/FP_styles.css?v=2.2" />
+    <link rel="stylesheet" href="assets/css/FP_styles.css?v=2.4" />
 </head>
 
 <body>
@@ -21,12 +21,15 @@
     <header class="pwa-app-bar">
         <a href="index.html" class="pwa-logo-wrap">
             <img src="assets/images/SRP-logo-rectangle.jpeg" alt="SRP Prime Wealth" class="pwa-logo-img" />
-            <span class="pwa-brand-pill">Freedom PWA</span>
+            <span class="pwa-brand-pill">Goal Planner</span>
         </a>
         <div class="pwa-nav-actions">
-            <button class="pwa-btn-icon" onclick="resetCalculatorDefaults()" title="Reset to Defaults" aria-label="Reset Defaults">↺</button>
+            <button class="pwa-btn-icon" onclick="resetCalculatorDefaults()" title="Reset to Defaults" aria-label="Reset Defaults">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </button>
             <a href="https://wa.me/917561805630" target="_blank" class="pwa-btn-wa" title="WhatsApp Advisory">
-                💬 Advisor
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/></svg>
+                <span>Advisor Desk</span>
             </a>
         </div>
     </header>
@@ -37,9 +40,12 @@
         <!-- STEP 1: LEAD CAPTURE MODAL / ONBOARDING -->
         <div id="fp-step-1" class="fp-step active">
             <div class="fp-lead-box">
-                <div class="fp-lead-badge">✨ Free Financial Blueprint</div>
+                <div class="fp-lead-badge">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    Goal Planning Blueprint
+                </div>
                 <h2>Plan Your Financial Independence</h2>
-                <p>Unlock the interactive retirement simulator, calculate your freedom age, and project your wealth trajectory.</p>
+                <p>Model your retirement trajectory, estimate freedom corpus, and stress-test life milestones.</p>
                 <form id="fp-lead-form">
                     <div class="fp-input-group">
                         <label for="lead-name">Your Full Name</label>
@@ -52,9 +58,15 @@
                     <input type="hidden" name="source" value="FP-PWA">
                     <input type="hidden" name="message" value="Financial Freedom PWA Access">
 
-                    <button type="submit" class="fp-btn-primary">Unlock Interactive Planner →</button>
+                    <button type="submit" class="fp-btn-primary">
+                        Unlock Interactive Planner
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                    </button>
                 </form>
-                <p class="fp-disclaimer">🔒 Your information is confidential with SRP Prime Wealth. We never spam.</p>
+                <p class="fp-disclaimer">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Strictly confidential. AMFI Registered Mutual Fund Distributor.
+                </p>
             </div>
         </div>
 
@@ -68,7 +80,7 @@
                         <span class="pulse-dot"></span> Live Freedom Snapshot
                     </div>
                     <div id="kpi-freedom-status" class="kpi-freedom-badge badge-success">
-                        🎉 Safe till Age 100+
+                        Fully Funded (Age 100+)
                     </div>
                 </div>
 
@@ -103,10 +115,22 @@
 
             <!-- SEGMENTED CATEGORY TABS -->
             <nav class="fp-nav-tabs" aria-label="Planner Sections">
-                <button class="fp-tab-btn active" onclick="scrollToCard('card-profile', this)">👤 Profile</button>
-                <button class="fp-tab-btn" onclick="scrollToCard('card-investments', this)">💰 Investments</button>
-                <button class="fp-tab-btn" onclick="scrollToCard('card-assumptions', this)">📈 Growth & Inflation</button>
-                <button class="fp-tab-btn" onclick="scrollToCard('card-goals', this)">🎯 Life Goals</button>
+                <button class="fp-tab-btn active" onclick="scrollToCard('card-profile', this)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    Profile
+                </button>
+                <button class="fp-tab-btn" onclick="scrollToCard('card-investments', this)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><circle cx="16" cy="15" r="2"/></svg>
+                    Investments
+                </button>
+                <button class="fp-tab-btn" onclick="scrollToCard('card-assumptions', this)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                    Assumptions
+                </button>
+                <button class="fp-tab-btn" onclick="scrollToCard('card-goals', this)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                    Life Goals
+                </button>
             </nav>
 
             <div class="fp-planner-wrapper">
@@ -115,7 +139,12 @@
                     <!-- CARD 1: PROFILE -->
                     <section class="fp-card" id="card-profile">
                         <div class="fp-card-header">
-                            <h3 class="fp-card-title"><span class="icon">👤</span> Personal Profile</h3>
+                            <h3 class="fp-card-title">
+                                <span class="icon-badge">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                </span>
+                                Personal Profile
+                            </h3>
                         </div>
 
                         <!-- Current Age -->
@@ -175,7 +204,12 @@
                     <!-- CARD 2: INVESTMENTS -->
                     <section class="fp-card" id="card-investments">
                         <div class="fp-card-header">
-                            <h3 class="fp-card-title"><span class="icon">💰</span> Current Investments</h3>
+                            <h3 class="fp-card-title">
+                                <span class="icon-badge">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><circle cx="16" cy="15" r="2"/></svg>
+                                </span>
+                                Current Investments & SIP
+                            </h3>
                         </div>
 
                         <!-- Existing Corpus -->
@@ -262,7 +296,12 @@
                     <!-- CARD 3: ASSUMPTIONS -->
                     <section class="fp-card" id="card-assumptions">
                         <div class="fp-card-header">
-                            <h3 class="fp-card-title"><span class="icon">📈</span> Growth & Inflation</h3>
+                            <h3 class="fp-card-title">
+                                <span class="icon-badge">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                                </span>
+                                Growth & Inflation Assumptions
+                            </h3>
                         </div>
 
                         <!-- Pre-Retirement IRR -->
@@ -341,7 +380,12 @@
                     <!-- CARD 4: RETIREMENT EXPENSE & GOALS -->
                     <section class="fp-card" id="card-goals">
                         <div class="fp-card-header">
-                            <h3 class="fp-card-title"><span class="icon">🎯</span> Retirement Expenses & Goals</h3>
+                            <h3 class="fp-card-title">
+                                <span class="icon-badge">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                                </span>
+                                Retirement Expenses & Targets
+                            </h3>
                         </div>
 
                         <!-- Current Expense -->
@@ -427,8 +471,16 @@
                     <!-- CARD 5: SPECIFIC GOALS & EVENTS -->
                     <section class="fp-card" id="card-events">
                         <div class="fp-events-header">
-                            <h3 class="fp-card-title"><span class="icon">✨</span> Life Goals & Milestones</h3>
-                            <button type="button" class="fp-btn-add-goal" onclick="addEventRow()">+ Add Life Goal</button>
+                            <h3 class="fp-card-title">
+                                <span class="icon-badge">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                                </span>
+                                Major Life Goals & Milestones
+                            </h3>
+                            <button type="button" class="fp-btn-add-goal" onclick="addEventRow()">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                Add Life Goal
+                            </button>
                         </div>
                         <p style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 12px;">
                             Add major events like Child Education, Buying a Home, Marriage, or Legacy Wealth.
@@ -443,15 +495,17 @@
                 <!-- STICKY BOTTOM ACTION BAR -->
                 <div class="fp-bottom-bar">
                     <button class="fp-btn-primary fp-btn-sticky" onclick="generateFreedomReport()">
-                        📊 View Detailed Year-by-Year Breakdown →
+                        View Detailed Cash Flow Projection
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                     </button>
                 </div>
 
                 <!-- DETAILED REPORT VIEW -->
                 <div id="fp-report-container" class="fp-report-hidden">
                     <div style="display: flex; gap: 12px; margin-bottom: 16px; margin-top: 24px;">
-                        <button onclick="downloadFreedomPDF()" id="btn-download-top" class="fp-btn-primary" style="background: var(--gradient-emerald); box-shadow: 0 4px 20px var(--accent-emerald-glow);">
-                            📄 Download Official PDF Report
+                        <button onclick="downloadFreedomPDF()" id="btn-download-top" class="fp-btn-primary" style="background: var(--brand-navy);">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Download Comprehensive PDF Report
                         </button>
                     </div>
 
@@ -478,8 +532,9 @@
                     </div>
 
                     <div style="display: flex; gap: 12px; margin-top: 20px; margin-bottom: 40px;">
-                        <button onclick="downloadFreedomPDF()" class="fp-btn-primary" style="background: var(--gradient-emerald); box-shadow: 0 4px 20px var(--accent-emerald-glow);">
-                            📄 Download Official PDF Report
+                        <button onclick="downloadFreedomPDF()" class="fp-btn-primary" style="background: var(--brand-navy);">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Download Comprehensive PDF Report
                         </button>
                     </div>
                 </div>
@@ -511,7 +566,7 @@
     <!-- SCRIPTS -->
     <script src="assets/js/vendor/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="assets/js/FP_main.js?v=2.2"></script>
+    <script src="assets/js/FP_main.js?v=2.4"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
