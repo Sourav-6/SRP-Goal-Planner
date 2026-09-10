@@ -50,12 +50,108 @@ function formatDisplayValue(id, val) {
         case 'inp-post-irr':
         case 'inp-inflation':
             return val.toFixed(1) + "% p.a.";
+        case 'inp-init-equity':
+            return Math.round(val) + "% Eq (" + (100 - Math.round(val)) + "% Dt)";
+        case 'inp-glide-start':
+            return Math.round(val) + " Mos (" + (val / 12).toFixed(1) + " Yrs)";
+        case 'inp-glide-end':
+            return Math.round(val) + " Mos (" + (val / 12).toFixed(1) + " Yrs)";
         case 'inp-expense':
             return formatIndianCurrency(val) + " / mo";
         default:
             return val.toString();
     }
 }
+
+// ==========================================================================
+// GLIDE PATH & ASSET ALLOCATION ENGINE
+// ==========================================================================
+function calcGlideAllocation(monthsLeft, initEquity = 80, startM = 108, endM = 12) {
+    initEquity = Math.min(100, Math.max(0, parseFloat(initEquity) || 80));
+    startM = Math.max(1, parseInt(startM) || 108);
+    endM = Math.max(0, parseInt(endM) || 12);
+    if (endM >= startM) endM = Math.max(0, startM - 1);
+
+    if (monthsLeft >= startM) {
+        return { equityPct: initEquity, debtPct: 100 - initEquity };
+    }
+    if (monthsLeft <= endM) {
+        return { equityPct: 0, debtPct: 100 };
+    }
+    const progress = (monthsLeft - endM) / (startM - endM);
+    const equityPct = Math.round(initEquity * progress * 10) / 10;
+    const debtPct = Math.round((100 - equityPct) * 10) / 10;
+    return { equityPct, debtPct };
+}
+
+function calcMilestoneMetrics(pv, inflation, yearsHorizon, initEquity, startM, endM, eqRate, debtRate) {
+    pv = Math.max(0, parseFloat(pv) || 0);
+    inflation = parseFloat(inflation) || 0;
+    yearsHorizon = Math.max(1, parseInt(yearsHorizon) || 1);
+    const monthsHorizon = yearsHorizon * 12;
+    const fv = pv * Math.pow(1 + inflation, yearsHorizon);
+
+    let sipAccumulator = 0;
+    let lumpsumFactor = 1;
+
+    for (let t = 0; t < monthsHorizon; t++) {
+        const mLeft = monthsHorizon - t;
+        const alloc = calcGlideAllocation(mLeft, initEquity, startM, endM);
+        const rAnnual = (alloc.equityPct / 100) * eqRate + (alloc.debtPct / 100) * debtRate;
+        const mRate = Math.pow(1 + rAnnual, 1 / 12) - 1;
+
+        sipAccumulator = (sipAccumulator + 1) * (1 + mRate);
+        lumpsumFactor = lumpsumFactor * (1 + mRate);
+    }
+
+    const reqSIP = sipAccumulator > 0 ? (fv / sipAccumulator) : (fv / monthsHorizon);
+    const reqLumpsum = lumpsumFactor > 0 ? (fv / lumpsumFactor) : fv;
+    const currentAlloc = calcGlideAllocation(monthsHorizon, initEquity, startM, endM);
+
+    return {
+        fv,
+        reqSIP,
+        reqLumpsum,
+        currentEquityPct: currentAlloc.equityPct,
+        currentDebtPct: currentAlloc.debtPct,
+        monthsHorizon
+    };
+}
+
+function updateGlideSummaryBanner() {
+    const desc = document.getElementById('glide-banner-desc');
+    if (!desc) return;
+    const initEq = parseFloat(document.getElementById('inp-init-equity')?.value) || 80;
+    const startM = parseInt(document.getElementById('inp-glide-start')?.value) || 108;
+    const endM = parseInt(document.getElementById('inp-glide-end')?.value) || 12;
+    desc.innerHTML = `<strong>Smart Glide Path Active:</strong> Initial allocation at <strong>${initEq}% Equity / ${100 - initEq}% Debt</strong>. Starts systematic de-risking <strong>${startM} months (${(startM / 12).toFixed(1)} Yrs)</strong> before target, reaching <strong>100% Debt</strong> by <strong>${endM} months (${(endM / 12).toFixed(1)} Yr)</strong> before target.`;
+}
+
+window.updateAllEventRowSummaries = function() {
+    const rows = document.querySelectorAll('.event-row');
+    if (!rows.length) return;
+    const currentYear = new Date().getFullYear();
+    const initEq = parseFloat(document.getElementById('inp-init-equity')?.value) || 80;
+    const startM = parseInt(document.getElementById('inp-glide-start')?.value) || 108;
+    const endM = parseInt(document.getElementById('inp-glide-end')?.value) || 12;
+    const eqRate = (parseFloat(document.getElementById('inp-pre-irr')?.value) || 13.5) / 100;
+    const debtRate = (parseFloat(document.getElementById('inp-post-irr')?.value) || 8.0) / 100;
+
+    rows.forEach(row => {
+        const targetYear = parseInt(row.querySelector('.ev-age')?.value) || (currentYear + 5);
+        const pv = parseFloat(row.querySelector('.ev-pv')?.value) || 0;
+        const inf = (parseFloat(row.querySelector('.ev-inf')?.value) || 0) / 100;
+        const yearsHorizon = Math.max(1, targetYear - currentYear);
+        const metrics = calcMilestoneMetrics(pv, inf, yearsHorizon, initEq, startM, endM, eqRate, debtRate);
+
+        const fvEl = row.querySelector('.ev-fv-val');
+        const sipEl = row.querySelector('.ev-sip-val');
+        const mixEl = row.querySelector('.ev-mix-val');
+        if (fvEl) fvEl.innerText = formatIndianCurrency(metrics.fv);
+        if (sipEl) sipEl.innerText = fmtINR_plain(metrics.reqSIP) + " / mo";
+        if (mixEl) mixEl.innerText = `${metrics.currentEquityPct.toFixed(0)}% Eq / ${metrics.currentDebtPct.toFixed(0)}% Dt`;
+    });
+};
 
 // ==========================================================================
 // REAL-TIME RETIREMENT SNAPSHOT ENGINE
@@ -66,11 +162,14 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     const initialCorpus = parseFloat(document.getElementById('inp-initial-corpus')?.value) || 0;
     const initialSIP = parseFloat(document.getElementById('inp-initial-sip')?.value) || 0;
     const stepUp = (parseFloat(document.getElementById('inp-stepup')?.value) || 0) / 100;
-    const preIRR = (parseFloat(document.getElementById('inp-pre-irr')?.value) || 12) / 100;
+    const preIRR = (parseFloat(document.getElementById('inp-pre-irr')?.value) || 13.5) / 100;
     const postIRR = (parseFloat(document.getElementById('inp-post-irr')?.value) || 8) / 100;
     const retExpToday = parseFloat(document.getElementById('inp-expense')?.value) || 0;
     const inflation = (parseFloat(document.getElementById('inp-inflation')?.value) || 0) / 100;
     const pensionDelay = parseInt(document.getElementById('inp-pension-delay')?.value) || 0;
+    const initEq = parseFloat(document.getElementById('inp-init-equity')?.value) || 80;
+    const startM = parseInt(document.getElementById('inp-glide-start')?.value) || 108;
+    const endM = parseInt(document.getElementById('inp-glide-end')?.value) || 12;
     
     // Quick years remaining
     const yearsLeft = Math.max(0, retAge - age);
@@ -82,12 +181,10 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     let totalInvested = initialCorpus;
     let corpusAtRetirement = 0;
     let exhaustionAge = null;
-    const mPreRate = Math.pow(1 + preIRR, 1 / 12) - 1;
     const mPostRate = Math.pow(1 + postIRR, 1 / 12) - 1;
+    const totalRetMonths = Math.max(0, (retAge - age) * 12);
 
     for (let a = age; a <= 100; a++) {
-        let isPre = (a < retAge);
-        let mRate = isPre ? mPreRate : mPostRate;
         let monthlySIP = 0;
         let monthlySWP = 0;
 
@@ -101,6 +198,18 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
         }
 
         for (let m = 0; m < 12; m++) {
+            let monthsElapsed = (a - age) * 12 + m;
+            let monthsLeftToRet = totalRetMonths - monthsElapsed;
+            let mRate;
+
+            if (a < retAge && monthsLeftToRet > 0) {
+                let alloc = calcGlideAllocation(monthsLeftToRet, initEq, startM, endM);
+                let rAnnual = (alloc.equityPct / 100) * preIRR + (alloc.debtPct / 100) * postIRR;
+                mRate = Math.pow(1 + rAnnual, 1 / 12) - 1;
+            } else {
+                mRate = mPostRate; // Post-retirement conservative rate
+            }
+
             if (corpus > 0 || monthlySIP > 0) {
                 corpus = corpus + monthlySIP - monthlySWP;
                 corpus = corpus + (corpus * mRate);
@@ -231,8 +340,12 @@ function syncControlState(id, val) {
         });
     }
 
-    // 4. Update Live KPI Snapshot
+    // 4. Update Live KPI Snapshot, Glide Banner & Milestone Goals
     window.updateLiveFreedomSnapshot();
+    updateGlideSummaryBanner();
+    if (typeof window.updateAllEventRowSummaries === 'function') {
+        window.updateAllEventRowSummaries();
+    }
 
     // 5. If sticky button was on Download, reset it
     const stickyBtn = document.querySelector('.fp-btn-sticky');
@@ -276,6 +389,9 @@ window.resetCalculatorDefaults = function resetCalculatorDefaults() {
         window.setControlVal('inp-pre-irr', 13.5);
         window.setControlVal('inp-post-irr', 8);
         window.setControlVal('inp-inflation', 7);
+        window.setControlVal('inp-init-equity', 80);
+        window.setControlVal('inp-glide-start', 108);
+        window.setControlVal('inp-glide-end', 12);
         window.setControlVal('inp-expense', 40000);
         window.setControlVal('inp-pension-delay', 0);
         
@@ -283,6 +399,8 @@ window.resetCalculatorDefaults = function resetCalculatorDefaults() {
         if (eventsContainer) eventsContainer.innerHTML = '';
         
         window.updateLiveFreedomSnapshot();
+        updateGlideSummaryBanner();
+        window.updateAllEventRowSummaries();
     }
 };
 
@@ -382,8 +500,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 4. Run Initial Snapshot
+    // 4. Run Initial Snapshot & Glide Banner
     window.updateLiveFreedomSnapshot();
+    updateGlideSummaryBanner();
+    window.updateAllEventRowSummaries();
 });
 
 // ==========================================================================
@@ -399,25 +519,25 @@ window.addEventRow = function addEventRow() {
     row.innerHTML = `
         <div class="ev-grid">
             <div class="ev-row-top">
-                <input type="text" class="ev-name" placeholder="Goal Name (e.g. Higher Edu / House / Car)" style="font-weight:600; flex:1;" value="Life Goal #${id + 1}">
-                <button type="button" class="ev-del-btn" onclick="this.closest('.event-row').remove(); window.updateLiveFreedomSnapshot();" title="Remove Goal" aria-label="Remove Goal">&#10005;</button>
+                <input type="text" class="ev-name" placeholder="Goal Name (e.g. Higher Edu / House / Car)" style="font-weight:600; flex:1;" value="Life Goal #${id + 1}" oninput="window.updateAllEventRowSummaries();">
+                <button type="button" class="ev-del-btn" onclick="this.closest('.event-row').remove(); window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();" title="Remove Goal" aria-label="Remove Goal">&#10005;</button>
             </div>
             <div class="ev-grid-fields">
                 <div>
                     <label>Target Year</label>
-                    <input type="number" class="ev-age" value="${currentYear + 5}" min="${currentYear}" oninput="window.updateLiveFreedomSnapshot()">
+                    <input type="number" class="ev-age" value="${currentYear + 5}" min="${currentYear}" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
                 </div>
                 <div>
                     <label>Amount Today (₹ PV)</label>
-                    <input type="number" class="ev-pv" value="500000" min="0" step="50000" oninput="window.updateLiveFreedomSnapshot()">
+                    <input type="number" class="ev-pv" value="500000" min="0" step="50000" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
                 </div>
                 <div>
                     <label>Inflation (%)</label>
-                    <input type="number" class="ev-inf" value="7" step="0.5" oninput="window.updateLiveFreedomSnapshot()">
+                    <input type="number" class="ev-inf" value="7" step="0.5" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
                 </div>
                 <div>
                     <label>Event Type</label>
-                    <select class="ev-type" onchange="window.toggleEventFields(this); window.updateLiveFreedomSnapshot();">
+                    <select class="ev-type" onchange="window.toggleEventFields(this); window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
                         <option value="outflow">Outflow (Lumpsum)</option>
                         <option value="recurring-outflow">Outflow (Recurring)</option>
                         <option value="inflow">Inflow</option>
@@ -426,25 +546,31 @@ window.addEventRow = function addEventRow() {
                 </div>
                 <div class="loan-fields" style="display:none; opacity:0.5;">
                     <label>Loan Rate (%)</label>
-                    <input type="number" class="ev-loan-rate" value="8.5" step="0.1" disabled oninput="window.updateLiveFreedomSnapshot()">
+                    <input type="number" class="ev-loan-rate" value="8.5" step="0.1" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
                 </div>
                 <div class="loan-fields" style="display:none; opacity:0.5;">
                     <label>Tenure (Yrs)</label>
-                    <input type="number" class="ev-loan-yrs" value="5" min="1" disabled oninput="window.updateLiveFreedomSnapshot()">
+                    <input type="number" class="ev-loan-yrs" value="5" min="1" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
                 </div>
                 <div class="recurring-fields" style="display:none; opacity:0.5;">
                     <label>Step-Up (%/yr)</label>
-                    <input type="number" class="ev-rec-stepup" value="0" step="0.5" disabled oninput="window.updateLiveFreedomSnapshot()">
+                    <input type="number" class="ev-rec-stepup" value="0" step="0.5" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
                 </div>
                 <div class="recurring-fields" style="display:none; opacity:0.5;">
                     <label>Duration (Yrs)</label>
-                    <input type="number" class="ev-rec-yrs" value="5" min="1" disabled oninput="window.updateLiveFreedomSnapshot()">
+                    <input type="number" class="ev-rec-yrs" value="5" min="1" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
                 </div>
+            </div>
+            <div class="ev-row-summary">
+                <span class="ev-sum-pill ev-pill-fv">Target FV: <strong class="ev-fv-val">₹ 0</strong></span>
+                <span class="ev-sum-pill ev-pill-sip">Earmarked SIP: <strong class="ev-sip-val">₹ 0 / mo</strong></span>
+                <span class="ev-sum-pill ev-pill-mix">Current Mix: <strong class="ev-mix-val">80% Eq / 20% Dt</strong></span>
             </div>
         </div>
     `;
     container.appendChild(row);
     window.updateLiveFreedomSnapshot();
+    window.updateAllEventRowSummaries();
 };
 
 window.toggleEventFields = function(selectEl) {
@@ -512,13 +638,17 @@ window.generateFreedomReport = function generateFreedomReport() {
     const initialCorpus = document.getElementById('inp-initial-corpus').value === '' ? 0 : parseFloat(document.getElementById('inp-initial-corpus').value);
     const initialSIP = document.getElementById('inp-initial-sip').value === '' ? 0 : parseFloat(document.getElementById('inp-initial-sip').value);
     const stepUp = (parseFloat(document.getElementById('inp-stepup').value) || 0) / 100;
-    const preIRR = (parseFloat(document.getElementById('inp-pre-irr').value) || 12) / 100;
+    const preIRR = (parseFloat(document.getElementById('inp-pre-irr').value) || 13.5) / 100;
     const postIRR = (parseFloat(document.getElementById('inp-post-irr').value) || 8) / 100;
     const retExpToday = parseFloat(document.getElementById('inp-expense').value) || 0;
     const inflation = (parseFloat(document.getElementById('inp-inflation').value) || 0) / 100;
     const pensionDelay = parseInt(document.getElementById('inp-pension-delay').value) || 0;
     const exhaustExpected = parseInt(document.getElementById('inp-exhaustion-expected').value) || 100;
     const mode = document.getElementById('inp-solver-mode').value || 'normal';
+    const initEq = parseFloat(document.getElementById('inp-init-equity')?.value) || 80;
+    const startM = parseInt(document.getElementById('inp-glide-start')?.value) || 108;
+    const endM = parseInt(document.getElementById('inp-glide-end')?.value) || 12;
+    const totalRetMonths = Math.max(0, (retAge - age) * 12);
     
     const currentYear = new Date().getFullYear();
 
@@ -555,6 +685,7 @@ window.generateFreedomReport = function generateFreedomReport() {
                 <tr>
                     <th>Year</th>
                     <th>Age</th>
+                    <th>Asset Mix</th>
                     <th>Present Value, Inflation</th>
                     <th>Details</th>
                     <th>Inflow</th>
@@ -683,15 +814,39 @@ window.generateFreedomReport = function generateFreedomReport() {
                  corpus = 0;
             }
 
-            let rate = (a < retAge) ? preIRR : postIRR;
-            let mRate = Math.pow(1 + rate, 1/12) - 1;
             let currentCorpus = isFirstYear ? simInitialCorpus : corpus;
             let mSIP = monthlySIP;
             let mSWP = monthlySWP;
             let mOut = rowOutflow / 12;
             let mIn = rowInflow / 12;
 
+            // Representative allocation badge for this year
+            let repMonthsLeft = totalRetMonths - ((a - age) * 12 + 6);
+            let rowAlloc = calcGlideAllocation(repMonthsLeft, initEq, startM, endM);
+            let mixBadge = '';
+            if (a >= retAge) {
+                mixBadge = `<span class="badge-asset-mix mix-debt">0% Eq / 100% Dt</span>`;
+            } else if (rowAlloc.equityPct >= initEq) {
+                mixBadge = `<span class="badge-asset-mix mix-equity">${initEq}% Eq / ${100 - initEq}% Dt</span>`;
+            } else if (rowAlloc.equityPct <= 0) {
+                mixBadge = `<span class="badge-asset-mix mix-debt">0% Eq / 100% Dt</span>`;
+            } else {
+                mixBadge = `<span class="badge-asset-mix mix-transition">${rowAlloc.equityPct.toFixed(0)}% Eq / ${rowAlloc.debtPct.toFixed(0)}% Dt</span>`;
+            }
+
             for(let m = 0; m < 12; m++) {
+                let monthsElapsed = (a - age) * 12 + m;
+                let monthsLeftToRet = totalRetMonths - monthsElapsed;
+                let mRate;
+
+                if (a < retAge && monthsLeftToRet > 0) {
+                    let alloc = calcGlideAllocation(monthsLeftToRet, initEq, startM, endM);
+                    let rAnnual = (alloc.equityPct / 100) * preIRR + (alloc.debtPct / 100) * postIRR;
+                    mRate = Math.pow(1 + rAnnual, 1 / 12) - 1;
+                } else {
+                    mRate = Math.pow(1 + postIRR, 1 / 12) - 1;
+                }
+
                 if(currentCorpus > 0 || mSIP > 0 || mIn > 0) {
                      currentCorpus = currentCorpus + mSIP + mIn - mSWP - mOut;
                      currentCorpus = currentCorpus + (currentCorpus * mRate);
@@ -718,6 +873,7 @@ window.generateFreedomReport = function generateFreedomReport() {
             tableHtml += `<tr ${a === retAge ? 'style="font-weight:700; background:rgba(0,210,255,0.08)"' : ''}>
                 <td>${year}</td>
                 <td ${a === retAge ? 'style="color:#00d2ff; font-weight:700;"' : ''}>${a}</td>
+                <td>${mixBadge}</td>
                 <td style="font-size:11px;">${rowPVs.join('<br>')}</td>
                 <td>${rowDetails.join('<br>')}</td>
                 <td style="color:#10b981">${rowInflow > 0 && !isFirstYear ? fmtINR_plain(rowInflow) : (isFirstYear ? fmtINR_plain(simInitialCorpus) : '')}</td>
@@ -789,16 +945,65 @@ window.generateFreedomReport = function generateFreedomReport() {
         solvedText = `<div style="grid-column: 1 / -1; background:linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%); color:#fff; padding:14px; border-radius:12px; text-align:center; font-weight:bold; margin-bottom: 16px;">Required Monthly SIP to secure goals till age ${maxAge}: <br><span style="font-size: 24px;">${fmtINR_plain(targetInitialSIP)}</span></div>`;
     }
 
+    // Milestone Goals Blueprint Table
+    let milestonesBoxHtml = '';
+    if (baseEvents.length > 0) {
+        let milestonesRows = '';
+        baseEvents.forEach(ev => {
+            const targetYear = currentYear + (ev.age - age);
+            const yearsHorizon = Math.max(1, targetYear - currentYear);
+            const metrics = calcMilestoneMetrics(ev.pv, ev.inflation, yearsHorizon, initEq, startM, endM, preIRR, postIRR);
+            let badgeClass = metrics.currentEquityPct >= initEq ? 'mix-equity' : (metrics.currentEquityPct <= 0 ? 'mix-debt' : 'mix-transition');
+            milestonesRows += `
+                <tr>
+                    <td><strong>${ev.name || 'Life Goal'}</strong></td>
+                    <td>${targetYear} (Age ${ev.age})</td>
+                    <td>${fmtINR_plain(ev.pv)}</td>
+                    <td style="color:#1d68bd; font-weight:600;">${fmtINR_plain(metrics.fv)}</td>
+                    <td><span class="badge-asset-mix ${badgeClass}">${metrics.currentEquityPct.toFixed(0)}% Eq / ${metrics.currentDebtPct.toFixed(0)}% Dt</span></td>
+                    <td style="color:#059669; font-weight:700;">${fmtINR_plain(metrics.reqSIP)} / mo</td>
+                </tr>
+            `;
+        });
+
+        milestonesBoxHtml = `
+            <div class="milestones-report-box">
+                <h4>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                    Major Life Goals Blueprint (Individually De-risked)
+                </h4>
+                <div class="milestones-table-wrap">
+                    <table class="milestones-table">
+                        <thead>
+                            <tr>
+                                <th>Goal Milestone</th>
+                                <th>Target Date</th>
+                                <th>Cost Today (PV)</th>
+                                <th>Inflated Target (FV)</th>
+                                <th>Current Mix</th>
+                                <th>Earmarked Monthly SIP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${milestonesRows}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
     document.getElementById('report-table').innerHTML = finalSim.tableHtml;
-    document.getElementById('report-summary').innerHTML = solvedText + `
+    document.getElementById('report-summary').innerHTML = solvedText + milestonesBoxHtml + `
         <div class="fp-summary-col">
             <div class="fp-sum-row"><span>Initial Corpus :</span> <strong>${fmtINR_plain(targetInitialCorpus)}</strong></div>
             <div class="fp-sum-row"><span>Initial SIP :</span> <strong>${fmtINR_plain(targetInitialSIP)}</strong></div>
+            <div class="fp-sum-row"><span>Initial Equity % :</span> <strong>${initEq}% (${100 - initEq}% Debt)</strong></div>
+            <div class="fp-sum-row"><span>Glide De-risking :</span> <strong>${startM}m &rarr; ${endM}m before target</strong></div>
             <div class="fp-sum-row"><span>Step up % :</span> <strong>${(stepUp * 100).toFixed(0)}%</strong></div>
-            <div class="fp-sum-row"><span>Pre Retirement IRR :</span> <strong>${(preIRR * 100).toFixed(1)}%</strong></div>
-            <div class="fp-sum-row"><span>Post Retirement IRR :</span> <strong>${(postIRR * 100).toFixed(1)}%</strong></div>
-            <div class="fp-sum-row"><span>Age :</span> <strong>${age}</strong></div>
-            <div class="fp-sum-row"><span>Retirement Age :</span> <strong>${retAge}</strong></div>
+            <div class="fp-sum-row"><span>Equity IRR :</span> <strong>${(preIRR * 100).toFixed(1)}%</strong></div>
+            <div class="fp-sum-row"><span>Debt IRR :</span> <strong>${(postIRR * 100).toFixed(1)}%</strong></div>
+            <div class="fp-sum-row"><span>Age / Ret. Age :</span> <strong>${age} / ${retAge}</strong></div>
             <div class="fp-sum-row"><span>Inflation :</span> <strong>${(inflation * 100).toFixed(1)}%</strong></div>
             <div class="fp-sum-row"><span>Pension Delay :</span> <strong>${pensionDelay} Years</strong></div>
         </div>
@@ -849,8 +1054,11 @@ window.sendFreedomReportEmail = async function (status) {
         fd.append('Initial Corpus (Rs)',        g('inp-initial-corpus'));
         fd.append('Initial SIP (Rs/mo)',        g('inp-initial-sip'));
         fd.append('SIP Step-Up %',              g('inp-stepup'));
-        fd.append('Pre-Retirement IRR %',       g('inp-pre-irr'));
-        fd.append('Post-Retirement IRR %',      g('inp-post-irr'));
+        fd.append('Equity IRR %',               g('inp-pre-irr'));
+        fd.append('Debt IRR %',                 g('inp-post-irr'));
+        fd.append('Initial Equity %',           g('inp-init-equity'));
+        fd.append('Glide Start (Months)',       g('inp-glide-start'));
+        fd.append('Glide End (Months)',         g('inp-glide-end'));
         fd.append('Current Expense (Rs/mo)',    g('inp-expense'));
         fd.append('Inflation Rate %',           g('inp-inflation'));
         fd.append('Pension Delay (Years)',      g('inp-pension-delay'));
@@ -865,7 +1073,9 @@ window.sendFreedomReportEmail = async function (status) {
                 const evPV = row.querySelector('.ev-pv')?.value || '0';
                 const evInf = row.querySelector('.ev-inf')?.value || '0';
                 const evType = row.querySelector('.ev-type')?.value || '-';
-                let line = `${i+1}. ${evName} | Year: ${evYear} | PV: Rs ${parseInt(evPV).toLocaleString('en-IN')} | Infl: ${evInf}% | Type: ${evType}`;
+                const fvVal = row.querySelector('.ev-fv-val')?.innerText || '-';
+                const sipVal = row.querySelector('.ev-sip-val')?.innerText || '-';
+                let line = `${i+1}. ${evName} | Year: ${evYear} | PV: Rs ${parseInt(evPV).toLocaleString('en-IN')} | FV: ${fvVal} | Req SIP: ${sipVal} | Type: ${evType}`;
                 if (evType === 'loan') {
                     const loanRate = row.querySelector('.ev-loan-rate')?.value || '-';
                     const loanYrs = row.querySelector('.ev-loan-yrs')?.value || '-';

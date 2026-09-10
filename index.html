@@ -309,7 +309,7 @@
                             <div class="fp-control-top">
                                 <div class="fp-control-lbl">
                                     Pre-Retirement Return (IRR)
-                                    <span class="fp-control-hint">Equity & hybrid growth rate</span>
+                                    <span class="fp-control-hint">Equity & growth asset CAGR</span>
                                 </div>
                                 <div class="fp-stepper-box">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-pre-irr', -0.5)">−</button>
@@ -333,7 +333,7 @@
                             <div class="fp-control-top">
                                 <div class="fp-control-lbl">
                                     Post-Retirement Return
-                                    <span class="fp-control-hint">Conservative debt/SWP portfolio</span>
+                                    <span class="fp-control-hint">Conservative debt/SWP portfolio CAGR</span>
                                 </div>
                                 <div class="fp-stepper-box">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-post-irr', -0.5)">−</button>
@@ -373,6 +373,84 @@
                                 <button type="button" class="fp-chip" onclick="setControlVal('inp-inflation', 6)">6%</button>
                                 <button type="button" class="fp-chip active" onclick="setControlVal('inp-inflation', 7)">7%</button>
                                 <button type="button" class="fp-chip" onclick="setControlVal('inp-inflation', 8)">8%</button>
+                            </div>
+                        </div>
+
+                        <!-- SUBHEAD: GLIDE PATH & ASSET PARTITION -->
+                        <div class="fp-section-subhead">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+                            Asset Partition & Glide Path
+                        </div>
+
+                        <!-- Initial Equity Allocation -->
+                        <div class="fp-control-group">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Initial Equity Allocation
+                                    <span class="fp-control-hint">Starting equity ratio before de-risking</span>
+                                </div>
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-init-equity', -1)">−</button>
+                                    <span class="fp-val-display" id="disp-init-equity">80% Eq (20% Dt)</span>
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-init-equity', 1)">+</button>
+                                </div>
+                                <input type="number" id="inp-init-equity" value="80" min="0" max="100" step="1" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-init-equity" value="80" min="0" max="100" step="1" class="fp-slider">
+                            </div>
+                            <div class="fp-chips-group">
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-init-equity', 70)">70:30</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-init-equity', 80)">80:20 (Default)</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-init-equity', 90)">90:10</button>
+                            </div>
+                        </div>
+
+                        <!-- Glide Path Start Window -->
+                        <div class="fp-control-group">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    De-Risking Start Window
+                                    <span class="fp-control-hint">Months before target when equity glides down</span>
+                                </div>
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-glide-start', -6)">−</button>
+                                    <span class="fp-val-display" id="disp-glide-start">108 Mos (9.0 Yrs)</span>
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-glide-start', 6)">+</button>
+                                </div>
+                                <input type="number" id="inp-glide-start" value="108" min="24" max="180" step="6" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-glide-start" value="108" min="24" max="180" step="6" class="fp-slider">
+                            </div>
+                            <div class="fp-chips-group">
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-glide-start', 72)">72 Mos (6 Yrs)</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-glide-start', 108)">108 Mos (9 Yrs Default)</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-glide-start', 120)">120 Mos (10 Yrs)</button>
+                            </div>
+                        </div>
+
+                        <!-- 100% Debt Completion Window -->
+                        <div class="fp-control-group">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    100% Debt Target Window
+                                    <span class="fp-control-hint">Months before target when equity reaches 0%</span>
+                                </div>
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-glide-end', -6)">−</button>
+                                    <span class="fp-val-display" id="disp-glide-end">12 Mos (1.0 Yr)</span>
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-glide-end', 6)">+</button>
+                                </div>
+                                <input type="number" id="inp-glide-end" value="12" min="0" max="60" step="6" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-glide-end" value="12" min="0" max="60" step="6" class="fp-slider">
+                            </div>
+                            <div class="fp-chips-group">
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-glide-end', 6)">6 Mos (0.5 Yr)</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-glide-end', 12)">12 Mos (1 Yr Default)</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-glide-end', 24)">24 Mos (2 Yrs)</button>
                             </div>
                         </div>
                     </section>
