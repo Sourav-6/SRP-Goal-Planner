@@ -272,6 +272,15 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
 
     const barEnd = document.getElementById('kpi-bar-end');
     if (barEnd) barEnd.innerText = exhaustionAge ? `Exhaust: ${exhaustionAge}` : `Freedom: 100+`;
+
+    // Record snapshot KPIs for database persistence
+    window.fpLastCalculatedSnapshot = {
+        targetCorpusAtRet: corpusAtRetirement,
+        monthlyPensionNeeded: monthlyPensionAtRet,
+        freedomStatus: statusEl ? statusEl.innerText : 'Fully Funded',
+        exhaustionAge: exhaustionAge || 100,
+        totalInvested: totalInvested
+    };
 };
 
 // ==========================================================================
@@ -347,6 +356,11 @@ function syncControlState(id, val) {
         window.updateAllEventRowSummaries();
     }
 
+    // Trigger auto-save to cloud database
+    if (!window.isPopulatingPlan && typeof window.triggerDebouncedAutoSave === 'function') {
+        window.triggerDebouncedAutoSave();
+    }
+
     // 5. If sticky button was on Download, reset it
     const stickyBtn = document.querySelector('.fp-btn-sticky');
     if (stickyBtn && stickyBtn.innerHTML.includes('Download')) {
@@ -417,82 +431,727 @@ window.clearLeadData = function clearLeadData() {
 };
 
 // ==========================================================================
-// INITIALIZATION
+// CLIENT AUTHENTICATION, DATABASE PERSISTENCE & ADVISOR ENGINE
 // ==========================================================================
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. Check if lead was already captured in localStorage
-    const isUnlocked = localStorage.getItem('fp_lead_unlocked');
-    if (isUnlocked === 'true') {
-        window.fpLeadName = localStorage.getItem('fp_lead_name') || '';
-        window.fpLeadPhone = localStorage.getItem('fp_lead_phone') || '';
-        const s1 = document.getElementById('fp-step-1');
-        const s2 = document.getElementById('fp-step-2');
-        if (s1 && s2) {
-            s1.classList.remove('active');
-            s2.classList.add('active');
+window.fpAuth = {
+    token: localStorage.getItem('fp_token') || null,
+    user: JSON.parse(localStorage.getItem('fp_user') || 'null'),
+    activePlanId: null,
+    activePlanName: 'Primary Plan',
+    isAdvisorInspection: false
+};
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+window.fpApi = async function (path, method = 'GET', body = null) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (window.fpAuth.token) {
+        headers['Authorization'] = `Bearer ${window.fpAuth.token}`;
+    }
+
+    try {
+        const res = await fetch(path, {
+            method,
+            headers,
+            body: body ? JSON.stringify(body) : null
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            if ((res.status === 401 || res.status === 403) && !path.includes('/auth/login')) {
+                console.warn('Authentication expired or unauthorized.');
+            }
+            throw new Error(data.error || `Request failed with status ${res.status}`);
+        }
+        return data;
+    } catch (err) {
+        console.error(`API Error [${method} ${path}]:`, err.message);
+        throw err;
+    }
+};
+
+// AUTO-SAVE ENGINE (DEBOUNCED DATABASE SYNC)
+let autoSaveTimer = null;
+window.triggerDebouncedAutoSave = function () {
+    if (!window.fpAuth.token || !window.fpAuth.activePlanId || window.fpAuth.isAdvisorInspection || window.isPopulatingPlan) {
+        return;
+    }
+
+    const pill = document.getElementById('save-status-pill');
+    const pillText = document.getElementById('save-status-text');
+    if (pill) {
+        pill.classList.add('syncing');
+        if (pillText) pillText.innerText = 'Syncing...';
+    }
+
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(async () => {
+        try {
+            const payload = collectPlanPayloadFromUI();
+            await window.fpApi(`/api/plans/${window.fpAuth.activePlanId}`, 'PUT', payload);
+            if (pill) {
+                pill.classList.remove('syncing');
+                if (pillText) pillText.innerText = 'Saved';
+            }
+        } catch (err) {
+            console.warn('Auto-save sync error:', err.message);
+            if (pill) {
+                pill.classList.remove('syncing');
+                if (pillText) pillText.innerText = 'Offline';
+            }
+        }
+    }, 1100);
+};
+
+function collectPlanPayloadFromUI() {
+    const gNum = (id, fallback = 0) => {
+        const el = document.getElementById(id);
+        return el ? (parseFloat(el.value) || fallback) : fallback;
+    };
+    const gInt = (id, fallback = 0) => {
+        const el = document.getElementById(id);
+        return el ? (parseInt(el.value) || fallback) : fallback;
+    };
+
+    const plan = {
+        plan_name: window.fpAuth.activePlanName || 'My Life Plan',
+        current_age: gInt('inp-age', 40),
+        retirement_age: gInt('inp-ret-age', 60),
+        life_expectancy: gInt('inp-exhaustion-expected', 100),
+        current_expense: gNum('inp-expense', 40000),
+        initial_corpus: gNum('inp-initial-corpus', 1000000),
+        initial_sip: gNum('inp-initial-sip', 25000),
+        sip_step_up: gNum('inp-stepup', 10),
+        pre_ret_irr: gNum('inp-pre-irr', 13.5),
+        post_ret_irr: gNum('inp-post-irr', 8.0),
+        inflation_rate: gNum('inp-inflation', 6.5),
+        initial_equity_pct: gNum('inp-init-equity', 80),
+        glide_start_months: gInt('inp-glide-start', 108),
+        glide_end_months: gInt('inp-glide-end', 12),
+        pension_delay_yrs: gInt('inp-pension-delay', 0),
+        solver_mode: document.getElementById('inp-solver-mode')?.value || 'custom'
+    };
+
+    const milestones = [];
+    document.querySelectorAll('.event-row').forEach((row, idx) => {
+        milestones.push({
+            name: row.querySelector('.ev-name')?.value || `Goal #${idx + 1}`,
+            age: parseInt(row.querySelector('.ev-age')?.value) || 50,
+            pv: parseFloat(row.querySelector('.ev-pv')?.value) || 0,
+            inf: parseFloat(row.querySelector('.ev-inf')?.value) || 7.0,
+            type: row.querySelector('.ev-type')?.value || 'outflow',
+            loanRate: parseFloat(row.querySelector('.ev-loan-rate')?.value) || 8.5,
+            loanYears: parseInt(row.querySelector('.ev-loan-yrs')?.value) || 5,
+            recStepUp: parseFloat(row.querySelector('.ev-rec-stepup')?.value) || 0,
+            recYears: parseInt(row.querySelector('.ev-rec-yrs')?.value) || 5
+        });
+    });
+
+    const snapshot = {
+        target_corpus_at_ret: window.fpLastCalculatedSnapshot?.targetCorpusAtRet || 0,
+        monthly_pension_needed: window.fpLastCalculatedSnapshot?.monthlyPensionNeeded || 0,
+        freedom_status: window.fpLastCalculatedSnapshot?.freedomStatus || 'Fully Funded',
+        exhaustion_age: window.fpLastCalculatedSnapshot?.exhaustionAge || 100,
+        total_sip_invested: window.fpLastCalculatedSnapshot?.totalInvested || 0
+    };
+
+    return { plan, milestones, snapshot };
+}
+
+window.populatePlanToUI = function (plan, milestones) {
+    if (!plan) return;
+
+    window.isPopulatingPlan = true;
+    window.fpAuth.activePlanId = plan.id;
+    window.fpAuth.activePlanName = plan.plan_name;
+
+    const hdrPlanName = document.getElementById('hdr-plan-name');
+    if (hdrPlanName) hdrPlanName.innerText = plan.plan_name;
+
+    window.setControlVal('inp-age', plan.current_age);
+    window.setControlVal('inp-ret-age', plan.retirement_age);
+    window.setControlVal('inp-exhaustion-expected', plan.life_expectancy || 100);
+    window.setControlVal('inp-expense', plan.current_expense);
+    window.setControlVal('inp-initial-corpus', plan.initial_corpus);
+    window.setControlVal('inp-initial-sip', plan.initial_sip);
+    window.setControlVal('inp-stepup', plan.sip_step_up);
+    window.setControlVal('inp-pre-irr', plan.pre_ret_irr);
+    window.setControlVal('inp-post-irr', plan.post_ret_irr);
+    window.setControlVal('inp-inflation', plan.inflation_rate);
+    window.setControlVal('inp-init-equity', plan.initial_equity_pct !== undefined ? plan.initial_equity_pct : 80);
+    window.setControlVal('inp-glide-start', plan.glide_start_months !== undefined ? plan.glide_start_months : 108);
+    window.setControlVal('inp-glide-end', plan.glide_end_months !== undefined ? plan.glide_end_months : 12);
+    window.setControlVal('inp-pension-delay', plan.pension_delay_yrs || 0);
+
+    const solverModeEl = document.getElementById('inp-solver-mode');
+    if (solverModeEl && plan.solver_mode) solverModeEl.value = plan.solver_mode;
+
+    // Populate milestone goals
+    const container = document.getElementById('events-container');
+    if (container) {
+        container.innerHTML = '';
+        if (Array.isArray(milestones) && milestones.length > 0) {
+            milestones.forEach(m => window.addEventRowWithData(m));
         }
     }
 
-    // 2. Handle Lead Form Submit
-    const leadForm = document.getElementById('fp-lead-form');
-    if (leadForm) {
-        leadForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const submitBtn = leadForm.querySelector('button[type="submit"]');
-            submitBtn.innerText = "Unlocking...";
-            submitBtn.disabled = true;
+    window.isPopulatingPlan = false;
+    window.updateLiveFreedomSnapshot();
+    window.updateAllEventRowSummaries();
+};
 
-            const name = document.getElementById('lead-name').value;
-            const phone = document.getElementById('lead-phone').value;
-            window.fpLeadName = name;
-            window.fpLeadPhone = phone;
+window.addEventRowWithData = function (data) {
+    let id = eventRowId++;
+    const container = document.getElementById('events-container');
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'event-row';
+    const type = data.goal_type || data.type || 'outflow';
 
-            localStorage.setItem('fp_lead_unlocked', 'true');
-            localStorage.setItem('fp_lead_name', name);
-            localStorage.setItem('fp_lead_phone', phone);
+    row.innerHTML = `
+        <div class="ev-grid">
+            <div class="ev-row-top">
+                <input type="text" class="ev-name" placeholder="Goal Name" style="font-weight:600; flex:1;" value="${escapeHtml(data.goal_name || data.name || 'Goal')}" oninput="window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
+                <button type="button" class="ev-del-btn" onclick="this.closest('.event-row').remove(); window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();" title="Remove Goal" aria-label="Remove Goal">&#10005;</button>
+            </div>
+            <div class="ev-grid-fields">
+                <div>
+                    <label>Target Year</label>
+                    <input type="number" class="ev-age" value="${data.target_age || data.age || 50}" min="18" max="100" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
+                </div>
+                <div>
+                    <label>Amount Today (₹ PV)</label>
+                    <input type="number" class="ev-pv" value="${data.present_value || data.pv || 500000}" min="0" step="50000" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
+                </div>
+                <div>
+                    <label>Inflation (%)</label>
+                    <input type="number" class="ev-inf" value="${data.inflation_rate !== undefined ? data.inflation_rate : (data.inf || 7)}" step="0.5" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
+                </div>
+                <div>
+                    <label>Event Type</label>
+                    <select class="ev-type" onchange="window.toggleEventFields(this); window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
+                        <option value="outflow" ${type === 'outflow' || type === 'lumpsum' ? 'selected' : ''}>Outflow (Lumpsum)</option>
+                        <option value="recurring-outflow" ${type === 'recurring-outflow' || type === 'recurring_outflow' ? 'selected' : ''}>Outflow (Recurring)</option>
+                        <option value="inflow" ${type === 'inflow' || type === 'recurring_inflow' ? 'selected' : ''}>Inflow</option>
+                        <option value="loan" ${type === 'loan' ? 'selected' : ''}>Loan (EMI Outflow)</option>
+                    </select>
+                </div>
+                <div class="loan-fields" style="${type === 'loan' ? '' : 'display:none; opacity:0.5;'}">
+                    <label>Loan Rate (%)</label>
+                    <input type="number" class="ev-loan-rate" value="${data.loan_rate || data.loanRate || 8.5}" step="0.1" ${type === 'loan' ? '' : 'disabled'} oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
+                </div>
+                <div class="loan-fields" style="${type === 'loan' ? '' : 'display:none; opacity:0.5;'}">
+                    <label>Tenure (Yrs)</label>
+                    <input type="number" class="ev-loan-yrs" value="${data.loan_tenure_yrs || data.loanYears || 5}" min="1" ${type === 'loan' ? '' : 'disabled'} oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
+                </div>
+                <div class="recurring-fields" style="${type.includes('recurring') ? '' : 'display:none; opacity:0.5;'}">
+                    <label>Step-Up (%/yr)</label>
+                    <input type="number" class="ev-rec-stepup" value="${data.rec_step_up || data.recStepUp || 0}" step="0.5" ${type.includes('recurring') ? '' : 'disabled'} oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
+                </div>
+                <div class="recurring-fields" style="${type.includes('recurring') ? '' : 'display:none; opacity:0.5;'}">
+                    <label>Duration (Yrs)</label>
+                    <input type="number" class="ev-rec-yrs" value="${data.rec_tenure_yrs || data.recYears || 5}" min="1" ${type.includes('recurring') ? '' : 'disabled'} oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
+                </div>
+            </div>
+            <div class="ev-row-summary">
+                <span class="ev-sum-pill ev-pill-fv">Target FV: <strong class="ev-fv-val">₹ 0</strong></span>
+                <span class="ev-sum-pill ev-pill-sip">Earmarked SIP: <strong class="ev-sip-val">₹ 0 / mo</strong></span>
+                <span class="ev-sum-pill ev-pill-mix">Current Mix: <strong class="ev-mix-val">80% Eq / 20% Dt</strong></span>
+            </div>
+        </div>
+    `;
+    container.appendChild(row);
+};
 
-            const s1 = document.getElementById('fp-step-1');
-            const s2 = document.getElementById('fp-step-2');
-            if (s1 && s2) {
-                s1.classList.remove('active');
-                s2.classList.add('active');
-                window.scrollTo(0, 0);
-            }
+// TAB SWITCHING (SIGN IN / REGISTER)
+window.switchAuthTab = function (tab) {
+    const btnLogin = document.getElementById('tab-btn-login');
+    const btnReg = document.getElementById('tab-btn-register');
+    const formLogin = document.getElementById('form-client-login');
+    const formReg = document.getElementById('form-client-register');
 
-            try {
-                const formData = new FormData(leadForm);
-                formData.append('_subject', 'Financial Freedom PWA Unlocked - ' + name);
-                await fetch("https://formsubmit.co/ajax/srpprimewealth@gmail.com", {
-                    method: "POST",
-                    headers: { 'Accept': 'application/json' },
-                    body: formData
-                });
-            } catch (err) {
-                console.error("Lead submit error:", err);
-            }
-        });
+    if (tab === 'login') {
+        if (btnLogin) btnLogin.classList.add('active');
+        if (btnReg) btnReg.classList.remove('active');
+        if (formLogin) formLogin.style.display = 'block';
+        if (formReg) formReg.style.display = 'none';
+    } else {
+        if (btnLogin) btnLogin.classList.remove('active');
+        if (btnReg) btnReg.classList.add('active');
+        if (formLogin) formLogin.style.display = 'none';
+        if (formReg) formReg.style.display = 'block';
+    }
+};
+
+window.handleClientLoginSubmit = async function (e) {
+    e.preventDefault();
+    const phone = document.getElementById('login-phone').value.trim();
+    const pin = document.getElementById('login-pin').value.trim();
+    const errEl = document.getElementById('login-error-msg');
+    const submitBtn = document.getElementById('btn-login-submit');
+
+    if (errEl) errEl.style.display = 'none';
+    if (submitBtn) { submitBtn.innerText = 'Signing In...'; submitBtn.disabled = true; }
+
+    try {
+        const res = await window.fpApi('/api/auth/login', 'POST', { phone, pin });
+        window.fpAuth.token = res.token;
+        window.fpAuth.user = res.user;
+        localStorage.setItem('fp_token', res.token);
+        localStorage.setItem('fp_user', JSON.stringify(res.user));
+
+        window.fpLeadName = res.user.name;
+        window.fpLeadPhone = res.user.phone;
+
+        // Load active plan
+        const planRes = await window.fpApi('/api/plans/active');
+        window.populatePlanToUI(planRes.plan, planRes.milestones);
+
+        revealPlannerUI(res.user);
+    } catch (err) {
+        if (errEl) {
+            errEl.innerText = err.message || 'Login failed. Please check your phone and PIN.';
+            errEl.style.display = 'block';
+        }
+    } finally {
+        if (submitBtn) { submitBtn.innerText = 'Access My Life Plans →'; submitBtn.disabled = false; }
+    }
+};
+
+window.handleClientRegisterSubmit = async function (e) {
+    e.preventDefault();
+    const name = document.getElementById('reg-name').value.trim();
+    const phone = document.getElementById('reg-phone').value.trim();
+    const pin = document.getElementById('reg-pin').value.trim();
+    const errEl = document.getElementById('register-error-msg');
+    const submitBtn = document.getElementById('btn-reg-submit');
+
+    if (errEl) errEl.style.display = 'none';
+    if (submitBtn) { submitBtn.innerText = 'Creating Account...'; submitBtn.disabled = true; }
+
+    try {
+        const res = await window.fpApi('/api/auth/register', 'POST', { name, phone, pin });
+        window.fpAuth.token = res.token;
+        window.fpAuth.user = res.user;
+        localStorage.setItem('fp_token', res.token);
+        localStorage.setItem('fp_user', JSON.stringify(res.user));
+
+        window.fpLeadName = res.user.name;
+        window.fpLeadPhone = res.user.phone;
+
+        const planRes = await window.fpApi('/api/plans/active');
+        window.populatePlanToUI(planRes.plan, planRes.milestones);
+
+        revealPlannerUI(res.user);
+    } catch (err) {
+        if (errEl) {
+            errEl.innerText = err.message || 'Registration failed. Please check your inputs.';
+            errEl.style.display = 'block';
+        }
+    } finally {
+        if (submitBtn) { submitBtn.innerText = 'Create Account & Start Planning →'; submitBtn.disabled = false; }
+    }
+};
+
+function revealPlannerUI(user) {
+    const s1 = document.getElementById('fp-step-1');
+    const s2 = document.getElementById('fp-step-2');
+    if (s1) s1.classList.remove('active');
+    if (s2) s2.classList.add('active');
+
+    const userBar = document.getElementById('fp-user-bar');
+    if (userBar) userBar.style.display = 'flex';
+
+    const userNameEl = document.getElementById('hdr-user-name');
+    if (userNameEl && user) {
+        userNameEl.innerText = user.name ? user.name.split(' ')[0] : 'Client';
     }
 
-    // 3. Setup Range Sliders & Number Input Synchronization
+    window.scrollTo(0, 0);
+}
+
+window.handleUserLogout = function (confirmPrompt = true) {
+    if (confirmPrompt && !confirm('Sign out of your account?')) return;
+    localStorage.removeItem('fp_token');
+    localStorage.removeItem('fp_user');
+    window.fpAuth.token = null;
+    window.fpAuth.user = null;
+    window.fpAuth.activePlanId = null;
+
+    const s1 = document.getElementById('fp-step-1');
+    const s2 = document.getElementById('fp-step-2');
+    if (s1) s1.classList.add('active');
+    if (s2) s2.classList.remove('active');
+
+    const userBar = document.getElementById('fp-user-bar');
+    if (userBar) userBar.style.display = 'none';
+
+    window.closeAdvisorDeskModal();
+    window.closePlanManagerModal();
+    window.closeAdvisorLoginModal();
+    const banner = document.getElementById('advisor-inspect-banner');
+    if (banner) banner.style.display = 'none';
+};
+
+// PLAN MANAGER (SCENARIO SWITCHER & BUILDER)
+window.openPlanManagerModal = async function () {
+    const modal = document.getElementById('modal-plan-manager');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    window.toggleNewPlanInput(false);
+    await window.renderPlanCardsList();
+};
+
+window.closePlanManagerModal = function () {
+    const modal = document.getElementById('modal-plan-manager');
+    if (modal) modal.style.display = 'none';
+};
+
+window.toggleNewPlanInput = function (show) {
+    const el = document.getElementById('new-plan-input-wrap');
+    if (el) el.style.display = show ? 'block' : 'none';
+    if (show) {
+        const inp = document.getElementById('inp-new-plan-name');
+        if (inp) { inp.value = ''; inp.focus(); }
+    }
+};
+
+window.submitCreateNewPlan = async function () {
+    const inp = document.getElementById('inp-new-plan-name');
+    const name = inp ? inp.value.trim() : '';
+    if (!name) {
+        alert('Please enter a name for this plan scenario.');
+        return;
+    }
+
+    try {
+        const res = await window.fpApi('/api/plans/new', 'POST', {
+            plan_name: name,
+            clone_from_id: window.fpAuth.activePlanId
+        });
+        const planRes = await window.fpApi(`/api/plans/${res.planId}`);
+        window.populatePlanToUI(planRes.plan, planRes.milestones);
+        window.closePlanManagerModal();
+    } catch (err) {
+        alert('Failed to create plan: ' + err.message);
+    }
+};
+
+window.duplicateCurrentPlan = async function () {
+    const baseName = window.fpAuth.activePlanName || 'My Life Plan';
+    const newName = `${baseName} (Copy)`;
+    try {
+        const res = await window.fpApi('/api/plans/new', 'POST', {
+            plan_name: newName,
+            clone_from_id: window.fpAuth.activePlanId
+        });
+        const planRes = await window.fpApi(`/api/plans/${res.planId}`);
+        window.populatePlanToUI(planRes.plan, planRes.milestones);
+        window.closePlanManagerModal();
+    } catch (err) {
+        alert('Failed to duplicate plan: ' + err.message);
+    }
+};
+
+window.renderPlanCardsList = async function () {
+    const container = document.getElementById('plan-cards-list');
+    if (!container) return;
+    container.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">Loading saved scenarios...</div>';
+
+    try {
+        const res = await window.fpApi('/api/plans');
+        const plans = res.plans || [];
+        if (plans.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">No saved plans found.</div>';
+            return;
+        }
+
+        let html = '';
+        plans.forEach(p => {
+            const isActive = p.id === window.fpAuth.activePlanId || p.is_active === 1;
+            const updatedDate = p.updated_at ? new Date(p.updated_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'Recently';
+            html += `
+                <div class="plan-card-item ${isActive ? 'active' : ''}">
+                    <div class="plan-item-left">
+                        <div class="plan-item-title-row">
+                            <span class="plan-item-title">${escapeHtml(p.plan_name)}</span>
+                            ${isActive ? '<span class="plan-active-badge">Active</span>' : ''}
+                        </div>
+                        <div class="plan-item-meta">
+                            Age ${p.current_age} &rarr; ${p.retirement_age} | SIP: ₹${parseInt(p.initial_sip).toLocaleString('en-IN')}/mo | Updated: ${updatedDate}
+                        </div>
+                    </div>
+                    <div class="plan-item-actions">
+                        ${!isActive ? `<button type="button" class="fp-btn-secondary" style="padding:5px 10px; font-size:12px;" onclick="window.switchActivePlan('${p.id}')">Open</button>` : '<span style="font-size:12px; color:#059669; font-weight:600; padding:5px 10px;">Loaded</span>'}
+                        ${plans.length > 1 && !isActive ? `<button type="button" class="ev-del-btn" onclick="window.deletePlanScenario('${p.id}')" title="Delete Plan">&#10005;</button>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerHTML = `<div style="color:#ef4444; padding:10px;">Failed to load plans: ${err.message}</div>`;
+    }
+};
+
+window.switchActivePlan = async function (planId) {
+    try {
+        await window.fpApi(`/api/plans/${planId}/activate`, 'PUT');
+        const planRes = await window.fpApi(`/api/plans/${planId}`);
+        window.populatePlanToUI(planRes.plan, planRes.milestones);
+        window.closePlanManagerModal();
+    } catch (err) {
+        alert('Failed to switch plan: ' + err.message);
+    }
+};
+
+window.deletePlanScenario = async function (planId) {
+    if (!confirm('Are you sure you want to delete this scenario?')) return;
+    try {
+        await window.fpApi(`/api/plans/${planId}`, 'DELETE');
+        await window.renderPlanCardsList();
+    } catch (err) {
+        alert('Delete failed: ' + err.message);
+    }
+};
+
+// ADVISOR INTELLIGENCE DESK INTEGRATION
+window.handleAdvisorDeskClick = function () {
+    if (window.fpAuth.token && window.fpAuth.user && window.fpAuth.user.role === 'advisor') {
+        window.openAdvisorDeskModal();
+    } else {
+        window.openAdvisorLoginModal();
+    }
+};
+
+window.openAdvisorLoginModal = function () {
+    const m = document.getElementById('modal-advisor-login');
+    if (m) m.style.display = 'flex';
+};
+
+window.closeAdvisorLoginModal = function () {
+    const m = document.getElementById('modal-advisor-login');
+    if (m) m.style.display = 'none';
+};
+
+window.handleAdvisorLoginSubmit = async function (e) {
+    e.preventDefault();
+    const phone = document.getElementById('adv-phone').value.trim();
+    const pin = document.getElementById('adv-pin').value.trim();
+    const errEl = document.getElementById('adv-error-msg');
+    const submitBtn = document.getElementById('btn-adv-login');
+
+    if (errEl) errEl.style.display = 'none';
+    if (submitBtn) { submitBtn.innerText = 'Authenticating...'; submitBtn.disabled = true; }
+
+    try {
+        const res = await window.fpApi('/api/auth/login', 'POST', { phone, pin });
+        if (res.user.role !== 'advisor') {
+            throw new Error('This account does not have advisor privileges.');
+        }
+
+        window.fpAuth.token = res.token;
+        window.fpAuth.user = res.user;
+        localStorage.setItem('fp_token', res.token);
+        localStorage.setItem('fp_user', JSON.stringify(res.user));
+
+        window.closeAdvisorLoginModal();
+        window.openAdvisorDeskModal();
+    } catch (err) {
+        if (errEl) {
+            errEl.innerText = err.message || 'Authentication failed.';
+            errEl.style.display = 'block';
+        }
+    } finally {
+        if (submitBtn) { submitBtn.innerText = 'Unlock Advisor Intelligence Desk'; submitBtn.disabled = false; }
+    }
+};
+
+window.openAdvisorDeskModal = async function () {
+    const m = document.getElementById('modal-advisor-desk');
+    if (m) m.style.display = 'flex';
+    await window.refreshAdvisorData();
+};
+
+window.closeAdvisorDeskModal = function () {
+    const m = document.getElementById('modal-advisor-desk');
+    if (m) m.style.display = 'none';
+};
+
+window.advisorClientsCache = [];
+window.refreshAdvisorData = async function () {
+    try {
+        const overview = await window.fpApi('/api/advisor/overview');
+        if (overview && overview.metrics) {
+            const m = overview.metrics;
+            const elClients = document.getElementById('adv-metric-clients');
+            const elGoals = document.getElementById('adv-metric-goals');
+            const elRetAge = document.getElementById('adv-metric-ret-age');
+            const elEquity = document.getElementById('adv-metric-equity');
+
+            if (elClients) elClients.innerText = m.totalClients;
+            if (elGoals) elGoals.innerText = m.totalGoals;
+            if (elRetAge) elRetAge.innerText = m.avgRetirementAge + ' Yrs';
+            if (elEquity) elEquity.innerText = m.avgEquityPct + '%';
+        }
+
+        const clientsRes = await window.fpApi('/api/advisor/clients');
+        window.advisorClientsCache = clientsRes.clients || [];
+        window.renderAdvisorClientTable(window.advisorClientsCache);
+    } catch (err) {
+        console.error('Advisor data error:', err);
+    }
+};
+
+window.renderAdvisorClientTable = function (clients) {
+    const tbody = document.getElementById('advisor-client-tbody');
+    const counter = document.getElementById('adv-client-count-lbl');
+    if (counter) counter.innerText = `Showing ${clients.length} clients`;
+    if (!tbody) return;
+
+    if (clients.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:24px; color:#64748b;">No matching clients found.</td></tr>`;
+        return;
+    }
+
+    let html = '';
+    clients.forEach(c => {
+        const isFunded = c.freedomStatus && c.freedomStatus.includes('Funded');
+        const statusBadge = isFunded
+            ? `<span class="badge-status-pill badge-status-funded">● Fully Funded</span>`
+            : `<span class="badge-status-pill badge-status-deficit">● Needs Review</span>`;
+
+        html += `
+            <tr>
+                <td>
+                    <div style="font-weight:700; color:var(--brand-navy);">${escapeHtml(c.clientName)}</div>
+                    <div style="font-size:11.5px; color:var(--text-tertiary);">+91 ${c.clientPhone}</div>
+                </td>
+                <td>
+                    <div><strong>${c.currentAge || 40}</strong> &rarr; <strong>${c.retirementAge || 60} Yrs</strong></div>
+                    <div style="font-size:11px; color:var(--text-tertiary);">${(c.retirementAge || 60) - (c.currentAge || 40)} Yrs to Freedom</div>
+                </td>
+                <td>
+                    <div style="font-weight:600;">₹ ${(c.initialSIP || 0).toLocaleString('en-IN')} / mo</div>
+                    <div style="font-size:11px; color:var(--text-tertiary);">Corpus: ₹ ${formatIndianCurrency(c.initialCorpus || 0).replace('₹ ', '')}</div>
+                </td>
+                <td>
+                    <span class="badge-asset-mix" style="font-size:11.5px;">${c.initialEquityPct || 80}% Eq / ${100 - (c.initialEquityPct || 80)}% Dt</span>
+                </td>
+                <td>
+                    <span style="font-weight:700; color:var(--brand-navy);">${c.milestoneGoalsCount || 0} Goals</span>
+                </td>
+                <td>${statusBadge}</td>
+                <td>
+                    ${c.activePlanId ? `
+                        <button type="button" class="btn-inspect-plan" onclick="window.inspectClientPlan('${c.activePlanId}', '${escapeHtml(c.clientName)}', '${escapeHtml(c.planName || 'Active Plan')}')">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                            Inspect Plan
+                        </button>
+                    ` : '<span style="color:#94a3b8; font-size:11px;">No plan</span>'}
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+};
+
+window.filterAdvisorClients = function (query) {
+    query = (query || '').toLowerCase().trim();
+    if (!query) {
+        window.renderAdvisorClientTable(window.advisorClientsCache);
+        return;
+    }
+    const filtered = window.advisorClientsCache.filter(c => 
+        (c.clientName && c.clientName.toLowerCase().includes(query)) ||
+        (c.clientPhone && c.clientPhone.includes(query))
+    );
+    window.renderAdvisorClientTable(filtered);
+};
+
+window.inspectClientPlan = async function (planId, clientName, planName) {
+    try {
+        const res = await window.fpApi(`/api/advisor/plans/${planId}`);
+        window.closeAdvisorDeskModal();
+
+        window.fpAuth.isAdvisorInspection = true;
+        const banner = document.getElementById('advisor-inspect-banner');
+        const cNameEl = document.getElementById('inspect-client-name');
+        const pNameEl = document.getElementById('inspect-plan-name');
+        if (banner) banner.style.display = 'flex';
+        if (cNameEl) cNameEl.innerText = clientName;
+        if (pNameEl) pNameEl.innerText = planName;
+
+        window.populatePlanToUI(res.plan, res.milestones);
+        revealPlannerUI({ name: clientName });
+    } catch (err) {
+        alert('Failed to inspect client plan: ' + err.message);
+    }
+};
+
+window.exitAdvisorInspection = function () {
+    window.fpAuth.isAdvisorInspection = false;
+    const banner = document.getElementById('advisor-inspect-banner');
+    if (banner) banner.style.display = 'none';
+    window.openAdvisorDeskModal();
+};
+
+window.initAuthSession = async function () {
+    const token = localStorage.getItem('fp_token');
+    if (!token) return;
+
+    try {
+        window.fpAuth.token = token;
+        const meRes = await window.fpApi('/api/auth/me');
+        window.fpAuth.user = meRes.user;
+
+        window.fpLeadName = meRes.user.name;
+        window.fpLeadPhone = meRes.user.phone;
+
+        const planRes = await window.fpApi('/api/plans/active');
+        window.populatePlanToUI(planRes.plan, planRes.milestones);
+
+        revealPlannerUI(meRes.user);
+    } catch (err) {
+        console.warn('Session verification failed, requiring re-login:', err.message);
+        localStorage.removeItem('fp_token');
+        localStorage.removeItem('fp_user');
+        window.fpAuth.token = null;
+        window.fpAuth.user = null;
+    }
+};
+
+// ==========================================================================
+// INITIALIZATION
+// ==========================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Check existing authentication session
+    window.initAuthSession();
+
+    // 2. Setup Range Sliders & Number Input Synchronization
     const sliders = document.querySelectorAll('.fp-slider');
     sliders.forEach(slider => {
         const inputId = slider.id.replace('slide-', 'inp-');
         const numberInput = document.getElementById(inputId);
         if (numberInput) {
-            // Initial sync
             slider.value = numberInput.value;
             updateSliderVisual(slider);
             const dispId = inputId.replace('inp-', 'disp-');
             const disp = document.getElementById(dispId);
             if (disp) disp.innerText = formatDisplayValue(inputId, numberInput.value);
 
-            // Slider dragged
             slider.addEventListener('input', (e) => {
                 numberInput.value = e.target.value;
                 syncControlState(inputId, e.target.value);
             });
 
-            // Number input edited
             numberInput.addEventListener('input', (e) => {
                 slider.value = e.target.value;
                 syncControlState(inputId, e.target.value);
@@ -500,7 +1159,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 4. Run Initial Snapshot & Glide Banner
+    // 3. Run Initial Snapshot & Milestone Calculations
     window.updateLiveFreedomSnapshot();
     updateGlideSummaryBanner();
     window.updateAllEventRowSummaries();
@@ -519,25 +1178,25 @@ window.addEventRow = function addEventRow() {
     row.innerHTML = `
         <div class="ev-grid">
             <div class="ev-row-top">
-                <input type="text" class="ev-name" placeholder="Goal Name (e.g. Higher Edu / House / Car)" style="font-weight:600; flex:1;" value="Life Goal #${id + 1}" oninput="window.updateAllEventRowSummaries();">
-                <button type="button" class="ev-del-btn" onclick="this.closest('.event-row').remove(); window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();" title="Remove Goal" aria-label="Remove Goal">&#10005;</button>
+                <input type="text" class="ev-name" placeholder="Goal Name (e.g. Higher Edu / House / Car)" style="font-weight:600; flex:1;" value="Life Goal #${id + 1}" oninput="window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
+                <button type="button" class="ev-del-btn" onclick="this.closest('.event-row').remove(); window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();" title="Remove Goal" aria-label="Remove Goal">&#10005;</button>
             </div>
             <div class="ev-grid-fields">
                 <div>
                     <label>Target Year</label>
-                    <input type="number" class="ev-age" value="${currentYear + 5}" min="${currentYear}" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
+                    <input type="number" class="ev-age" value="${currentYear + 5}" min="${currentYear}" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
                 </div>
                 <div>
                     <label>Amount Today (₹ PV)</label>
-                    <input type="number" class="ev-pv" value="500000" min="0" step="50000" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
+                    <input type="number" class="ev-pv" value="500000" min="0" step="50000" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
                 </div>
                 <div>
                     <label>Inflation (%)</label>
-                    <input type="number" class="ev-inf" value="7" step="0.5" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
+                    <input type="number" class="ev-inf" value="7" step="0.5" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
                 </div>
                 <div>
                     <label>Event Type</label>
-                    <select class="ev-type" onchange="window.toggleEventFields(this); window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
+                    <select class="ev-type" onchange="window.toggleEventFields(this); window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
                         <option value="outflow">Outflow (Lumpsum)</option>
                         <option value="recurring-outflow">Outflow (Recurring)</option>
                         <option value="inflow">Inflow</option>
@@ -546,19 +1205,19 @@ window.addEventRow = function addEventRow() {
                 </div>
                 <div class="loan-fields" style="display:none; opacity:0.5;">
                     <label>Loan Rate (%)</label>
-                    <input type="number" class="ev-loan-rate" value="8.5" step="0.1" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
+                    <input type="number" class="ev-loan-rate" value="8.5" step="0.1" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
                 </div>
                 <div class="loan-fields" style="display:none; opacity:0.5;">
                     <label>Tenure (Yrs)</label>
-                    <input type="number" class="ev-loan-yrs" value="5" min="1" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
+                    <input type="number" class="ev-loan-yrs" value="5" min="1" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
                 </div>
                 <div class="recurring-fields" style="display:none; opacity:0.5;">
                     <label>Step-Up (%/yr)</label>
-                    <input type="number" class="ev-rec-stepup" value="0" step="0.5" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
+                    <input type="number" class="ev-rec-stepup" value="0" step="0.5" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
                 </div>
                 <div class="recurring-fields" style="display:none; opacity:0.5;">
                     <label>Duration (Yrs)</label>
-                    <input type="number" class="ev-rec-yrs" value="5" min="1" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries();">
+                    <input type="number" class="ev-rec-yrs" value="5" min="1" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
                 </div>
             </div>
             <div class="ev-row-summary">
@@ -571,6 +1230,7 @@ window.addEventRow = function addEventRow() {
     container.appendChild(row);
     window.updateLiveFreedomSnapshot();
     window.updateAllEventRowSummaries();
+    window.triggerDebouncedAutoSave();
 };
 
 window.toggleEventFields = function(selectEl) {

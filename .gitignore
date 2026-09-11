@@ -12,3 +12,19 @@ ehthumbs_vista.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Node dependencies
+node_modules/
+
+# Local databases
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Environment Variables & Netlify Cache
+.env
+.env.*
+!.env.example
+.netlify/
+
