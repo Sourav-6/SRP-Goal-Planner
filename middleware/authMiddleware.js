@@ -1,9 +1,9 @@
 const jwt = require('jsonwebtoken');
-const db = require('../db/database');
+const dbService = require('../db/dbService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'SRP_PRIME_WEALTH_SECRET_KEY_2026_FREEDOM_PLANNER';
 
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
@@ -13,7 +13,7 @@ function authenticateToken(req, res, next) {
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        const user = db.prepare('SELECT id, name, phone, role FROM users WHERE id = ?').get(decoded.userId);
+        const user = await dbService.getUserById(decoded.userId);
         if (!user) {
             return res.status(403).json({ error: 'User session expired or not found.' });
         }
