@@ -12,6 +12,61 @@ function getSqlite() {
     return sqliteDb;
 }
 
+function normalizePlanRecord(plan) {
+    if (!plan) return null;
+    let retEnabled = 1;
+    let isFirstTime = (plan.current_age === 0 || plan.current_age === null || plan.current_age === undefined) ? 1 : 0;
+
+    if (plan.solver_mode && typeof plan.solver_mode === 'string' && plan.solver_mode.startsWith('{')) {
+        try {
+            const meta = JSON.parse(plan.solver_mode);
+            if (meta.retirement_enabled !== undefined) retEnabled = meta.retirement_enabled ? 1 : 0;
+            if (meta.is_first_time !== undefined) isFirstTime = meta.is_first_time ? 1 : 0;
+            plan.solver_mode = meta.mode || 'custom';
+        } catch (e) {}
+    } else if (plan.retirement_enabled !== undefined) {
+        retEnabled = plan.retirement_enabled ? 1 : 0;
+    }
+    if (plan.is_first_time !== undefined) {
+        isFirstTime = plan.is_first_time ? 1 : isFirstTime;
+    }
+
+    plan.retirement_enabled = retEnabled;
+    plan.is_first_time = isFirstTime;
+    return plan;
+}
+
+function normalizeMilestones(milestones) {
+    if (!Array.isArray(milestones)) return [];
+    return milestones.map(m => {
+        let activeAmount = m.active_amount !== undefined ? parseFloat(m.active_amount) : 0;
+        let equityPct = m.equity_pct !== undefined ? parseFloat(m.equity_pct) : 80;
+        let debtPct = m.debt_pct !== undefined ? parseFloat(m.debt_pct) : 20;
+        let isEnabled = m.is_enabled !== undefined ? (m.is_enabled ? 1 : 0) : 1;
+        let goalType = m.goal_type || 'lumpsum';
+
+        if (goalType && typeof goalType === 'string' && goalType.startsWith('{')) {
+            try {
+                const meta = JSON.parse(goalType);
+                goalType = meta.type || 'lumpsum';
+                if (meta.active !== undefined) activeAmount = parseFloat(meta.active) || 0;
+                if (meta.eq !== undefined) equityPct = parseFloat(meta.eq) || 80;
+                if (meta.debt !== undefined) debtPct = parseFloat(meta.debt) || 20;
+                if (meta.enabled !== undefined) isEnabled = meta.enabled ? 1 : 0;
+            } catch (e) {}
+        }
+
+        return {
+            ...m,
+            goal_type: goalType,
+            active_amount: activeAmount,
+            equity_pct: equityPct,
+            debt_pct: debtPct,
+            is_enabled: isEnabled
+        };
+    });
+}
+
 const dbService = {
     isSupabaseConfigured,
 
@@ -97,6 +152,7 @@ const dbService = {
     async createInitialPlan(userId) {
         const planId = 'plan_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
         const now = new Date().toISOString();
+        const solverMeta = JSON.stringify({ mode: 'custom', is_first_time: 1, retirement_enabled: 1 });
 
         if (isSupabaseConfigured()) {
             const supabase = getSupabaseClient();
@@ -104,13 +160,13 @@ const dbService = {
                 id: planId,
                 user_id: userId,
                 plan_name: 'My Freedom Plan',
-                current_age: 40,
-                retirement_age: 60,
+                current_age: 0,
+                retirement_age: 0,
                 life_expectancy: 100,
-                current_expense: 40000,
-                initial_corpus: 1000000,
-                initial_sip: 25000,
-                sip_step_up: 10,
+                current_expense: 0,
+                initial_corpus: 0,
+                initial_sip: 0,
+                sip_step_up: 0,
                 pre_ret_irr: 13.5,
                 post_ret_irr: 8.0,
                 inflation_rate: 6.5,
@@ -118,7 +174,7 @@ const dbService = {
                 glide_start_months: 108,
                 glide_end_months: 12,
                 pension_delay_yrs: 0,
-                solver_mode: 'custom',
+                solver_mode: solverMeta,
                 is_active: 1,
                 created_at: now,
                 updated_at: now
@@ -134,13 +190,15 @@ const dbService = {
                 current_expense, initial_corpus, initial_sip, sip_step_up,
                 pre_ret_irr, post_ret_irr, inflation_rate, initial_equity_pct,
                 glide_start_months, glide_end_months, pension_delay_yrs, solver_mode,
+                retirement_enabled, is_first_time,
                 is_active, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
-            planId, userId, 'My Freedom Plan', 40, 60, 100,
-            40000, 1000000, 25000, 10,
+            planId, userId, 'My Freedom Plan', 0, 0, 100,
+            0, 0, 0, 0,
             13.5, 8.0, 6.5, 80,
-            108, 12, 0, 'custom',
+            108, 12, 0, solverMeta,
+            1, 1,
             1, now, now
         );
         return planId;
@@ -212,8 +270,8 @@ const dbService = {
                 .maybeSingle();
 
             return {
-                plan,
-                milestones: milestones || [],
+                plan: normalizePlanRecord(plan),
+                milestones: normalizeMilestones(milestones || []),
                 snapshot: snapshot || null
             };
         }
@@ -248,8 +306,8 @@ const dbService = {
         `).get(plan.id);
 
         return {
-            plan,
-            milestones: milestones || [],
+            plan: normalizePlanRecord(plan),
+            milestones: normalizeMilestones(milestones || []),
             snapshot: snapshot || null
         };
     },
@@ -281,8 +339,8 @@ const dbService = {
                 .maybeSingle();
 
             return {
-                plan,
-                milestones: milestones || [],
+                plan: normalizePlanRecord(plan),
+                milestones: normalizeMilestones(milestones || []),
                 snapshot: snapshot || null
             };
         }
@@ -306,8 +364,8 @@ const dbService = {
         `).get(plan.id);
 
         return {
-            plan,
-            milestones: milestones || [],
+            plan: normalizePlanRecord(plan),
+            milestones: normalizeMilestones(milestones || []),
             snapshot: snapshot || null
         };
     },
@@ -358,13 +416,13 @@ const dbService = {
                 id: newPlanId,
                 user_id: userId,
                 plan_name: name,
-                current_age: 40,
-                retirement_age: 60,
+                current_age: 0,
+                retirement_age: 0,
                 life_expectancy: 100,
-                current_expense: 40000,
-                initial_corpus: 1000000,
-                initial_sip: 25000,
-                sip_step_up: 10,
+                current_expense: 0,
+                initial_corpus: 0,
+                initial_sip: 0,
+                sip_step_up: 0,
                 pre_ret_irr: 13.5,
                 post_ret_irr: 8.0,
                 inflation_rate: 6.5,
@@ -372,7 +430,7 @@ const dbService = {
                 glide_start_months: 108,
                 glide_end_months: 12,
                 pension_delay_yrs: 0,
-                solver_mode: 'custom',
+                solver_mode: JSON.stringify({ mode: 'custom', is_first_time: 1, retirement_enabled: 1 }),
                 is_active: 1,
                 created_at: now,
                 updated_at: now
@@ -418,13 +476,16 @@ const dbService = {
                     current_expense, initial_corpus, initial_sip, sip_step_up,
                     pre_ret_irr, post_ret_irr, inflation_rate, initial_equity_pct,
                     glide_start_months, glide_end_months, pension_delay_yrs, solver_mode,
+                    retirement_enabled, is_first_time,
                     is_active, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
             `).run(
                 newPlanId, userId, name, base.current_age, base.retirement_age, base.life_expectancy,
                 base.current_expense, base.initial_corpus, base.initial_sip, base.sip_step_up,
                 base.pre_ret_irr, base.post_ret_irr, base.inflation_rate, base.initial_equity_pct,
                 base.glide_start_months, base.glide_end_months, base.pension_delay_yrs, base.solver_mode,
+                base.retirement_enabled !== undefined ? base.retirement_enabled : 1,
+                0, // Cloned plan is not first time
                 now, now
             );
 
@@ -432,27 +493,32 @@ const dbService = {
             const insertMilestone = db.prepare(`
                 INSERT INTO milestone_goals (
                     id, plan_id, goal_name, target_age, present_value, inflation_rate,
-                    goal_type, loan_rate, loan_tenure_yrs, rec_step_up, rec_tenure_yrs, sort_order, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    goal_type, loan_rate, loan_tenure_yrs, rec_step_up, rec_tenure_yrs,
+                    active_amount, equity_pct, debt_pct, is_enabled, sort_order, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
             for (const m of milestones) {
                 const mId = 'g_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
                 insertMilestone.run(
                     mId, newPlanId, m.goal_name, m.target_age, m.present_value, m.inflation_rate,
-                    m.goal_type, m.loan_rate, m.loan_tenure_yrs, m.rec_step_up, m.rec_tenure_yrs, m.sort_order, now
+                    m.goal_type, m.loan_rate, m.loan_tenure_yrs, m.rec_step_up, m.rec_tenure_yrs,
+                    m.active_amount || 0, m.equity_pct || 80, m.debt_pct || 20, m.is_enabled !== undefined ? m.is_enabled : 1,
+                    m.sort_order, now
                 );
             }
         } else {
+            const solverMeta = JSON.stringify({ mode: 'custom', is_first_time: 1, retirement_enabled: 1 });
             db.prepare(`
                 INSERT INTO plans (
                     id, user_id, plan_name, current_age, retirement_age, life_expectancy,
                     current_expense, initial_corpus, initial_sip, sip_step_up,
                     pre_ret_irr, post_ret_irr, inflation_rate, initial_equity_pct,
                     glide_start_months, glide_end_months, pension_delay_yrs, solver_mode,
+                    retirement_enabled, is_first_time,
                     is_active, created_at, updated_at
-                ) VALUES (?, ?, ?, 40, 60, 100, 40000, 1000000, 25000, 10, 13.5, 8.0, 6.5, 80, 108, 12, 0, 'custom', 1, ?, ?)
-            `).run(newPlanId, userId, name, now, now);
+                ) VALUES (?, ?, ?, 0, 0, 100, 0, 0, 0, 0, 13.5, 8.0, 6.5, 80, 108, 12, 0, ?, 1, 1, 1, ?, ?)
+            `).run(newPlanId, userId, name, solverMeta, now, now);
         }
 
         return { planId: newPlanId, planName: name };
@@ -469,10 +535,10 @@ const dbService = {
             if (planData) {
                 const updateObj = { updated_at: now };
                 if (planData.plan_name !== undefined) updateObj.plan_name = planData.plan_name;
-                if (planData.current_age !== undefined) updateObj.current_age = parseInt(planData.current_age) || 40;
-                if (planData.retirement_age !== undefined) updateObj.retirement_age = parseInt(planData.retirement_age) || 60;
+                if (planData.current_age !== undefined) updateObj.current_age = parseInt(planData.current_age) || 0;
+                if (planData.retirement_age !== undefined) updateObj.retirement_age = parseInt(planData.retirement_age) || 0;
                 if (planData.life_expectancy !== undefined) updateObj.life_expectancy = parseInt(planData.life_expectancy) || 100;
-                if (planData.current_expense !== undefined) updateObj.current_expense = parseFloat(planData.current_expense) || 40000;
+                if (planData.current_expense !== undefined) updateObj.current_expense = parseFloat(planData.current_expense) || 0;
                 if (planData.initial_corpus !== undefined) updateObj.initial_corpus = parseFloat(planData.initial_corpus) || 0;
                 if (planData.initial_sip !== undefined) updateObj.initial_sip = parseFloat(planData.initial_sip) || 0;
                 if (planData.sip_step_up !== undefined) updateObj.sip_step_up = parseFloat(planData.sip_step_up) || 0;
@@ -483,7 +549,14 @@ const dbService = {
                 if (planData.glide_start_months !== undefined) updateObj.glide_start_months = parseInt(planData.glide_start_months) || 108;
                 if (planData.glide_end_months !== undefined) updateObj.glide_end_months = parseInt(planData.glide_end_months) || 12;
                 if (planData.pension_delay_yrs !== undefined) updateObj.pension_delay_yrs = parseInt(planData.pension_delay_yrs) || 0;
-                if (planData.solver_mode !== undefined) updateObj.solver_mode = planData.solver_mode || 'custom';
+
+                const isFirstTime = planData.is_first_time !== undefined ? (planData.is_first_time ? 1 : 0) : 0;
+                const retEnabled = planData.retirement_enabled !== undefined ? (planData.retirement_enabled ? 1 : 0) : 1;
+                updateObj.solver_mode = JSON.stringify({
+                    mode: planData.solver_mode || 'custom',
+                    is_first_time: isFirstTime,
+                    retirement_enabled: retEnabled
+                });
 
                 await supabase.from('plans').update(updateObj).eq('id', planId);
             }
@@ -498,10 +571,16 @@ const dbService = {
                         target_age: parseInt(m.age || m.target_age) || 50,
                         present_value: parseFloat(m.pv || m.present_value) || 0,
                         inflation_rate: parseFloat(m.inf || m.inflation_rate) || 7.0,
-                        goal_type: m.type || m.goal_type || 'lumpsum',
-                        loan_rate: parseFloat(m.loanRate || m.loan_rate) || 8.5,
+                        goal_type: JSON.stringify({
+                            type: m.type || m.goal_type || 'lumpsum',
+                            active: parseFloat(m.active_amount ?? m.activeAmount ?? 0),
+                            eq: parseFloat(m.equity_pct ?? m.equityPct ?? 80),
+                            debt: parseFloat(m.debt_pct ?? m.debtPct ?? 20),
+                            enabled: (m.is_enabled !== undefined ? (m.is_enabled ? 1 : 0) : 1)
+                        }),
+                        loan_rate: parseFloat(m.equity_pct ?? m.equityPct ?? 80),
                         loan_tenure_yrs: parseInt(m.loanYears || m.loan_tenure_yrs) || 5,
-                        rec_step_up: parseFloat(m.recStepUp || m.rec_step_up) || 0,
+                        rec_step_up: parseFloat(m.active_amount ?? m.activeAmount ?? 0),
                         rec_tenure_yrs: parseInt(m.recYears || m.rec_tenure_yrs) || 5,
                         sort_order: idx,
                         created_at: now
@@ -532,6 +611,14 @@ const dbService = {
 
         const saveTx = db.transaction(() => {
             if (planData) {
+                const isFirstTime = planData.is_first_time !== undefined ? (planData.is_first_time ? 1 : 0) : 0;
+                const retEnabled = planData.retirement_enabled !== undefined ? (planData.retirement_enabled ? 1 : 0) : 1;
+                const solverMeta = JSON.stringify({
+                    mode: planData.solver_mode || 'custom',
+                    is_first_time: isFirstTime,
+                    retirement_enabled: retEnabled
+                });
+
                 db.prepare(`
                     UPDATE plans SET
                         plan_name = COALESCE(?, plan_name),
@@ -550,14 +637,16 @@ const dbService = {
                         glide_end_months = ?,
                         pension_delay_yrs = ?,
                         solver_mode = ?,
+                        retirement_enabled = ?,
+                        is_first_time = ?,
                         updated_at = ?
                     WHERE id = ?
                 `).run(
                     planData.plan_name || null,
-                    parseInt(planData.current_age) || 40,
-                    parseInt(planData.retirement_age) || 60,
+                    parseInt(planData.current_age) || 0,
+                    parseInt(planData.retirement_age) || 0,
                     parseInt(planData.life_expectancy) || 100,
-                    parseFloat(planData.current_expense) || 40000,
+                    parseFloat(planData.current_expense) || 0,
                     parseFloat(planData.initial_corpus) || 0,
                     parseFloat(planData.initial_sip) || 0,
                     parseFloat(planData.sip_step_up) || 0,
@@ -568,7 +657,9 @@ const dbService = {
                     parseInt(planData.glide_start_months) || 108,
                     parseInt(planData.glide_end_months) || 12,
                     parseInt(planData.pension_delay_yrs) || 0,
-                    planData.solver_mode || 'custom',
+                    solverMeta,
+                    retEnabled,
+                    isFirstTime,
                     now,
                     planId
                 );
@@ -579,12 +670,20 @@ const dbService = {
                 const insertMilestone = db.prepare(`
                     INSERT INTO milestone_goals (
                         id, plan_id, goal_name, target_age, present_value, inflation_rate,
-                        goal_type, loan_rate, loan_tenure_yrs, rec_step_up, rec_tenure_yrs, sort_order, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        goal_type, loan_rate, loan_tenure_yrs, rec_step_up, rec_tenure_yrs,
+                        active_amount, equity_pct, debt_pct, is_enabled,
+                        sort_order, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `);
 
                 milestones.forEach((m, idx) => {
                     const mId = m.id || ('g_' + Date.now() + '_' + idx);
+                    const activeAmount = parseFloat(m.active_amount ?? m.activeAmount ?? 0);
+                    const equityPct = parseFloat(m.equity_pct ?? m.equityPct ?? 80);
+                    const debtPct = parseFloat(m.debt_pct ?? m.debtPct ?? 20);
+                    const isEnabled = (m.is_enabled !== undefined ? (m.is_enabled ? 1 : 0) : 1);
+                    const goalType = m.type || m.goal_type || 'lumpsum';
+
                     insertMilestone.run(
                         mId,
                         planId,
@@ -592,11 +691,15 @@ const dbService = {
                         parseInt(m.age || m.target_age) || 50,
                         parseFloat(m.pv || m.present_value) || 0,
                         parseFloat(m.inf || m.inflation_rate) || 7.0,
-                        m.type || m.goal_type || 'lumpsum',
-                        parseFloat(m.loanRate || m.loan_rate) || 8.5,
+                        goalType,
+                        equityPct,
                         parseInt(m.loanYears || m.loan_tenure_yrs) || 5,
-                        parseFloat(m.recStepUp || m.rec_step_up) || 0,
+                        activeAmount,
                         parseInt(m.recYears || m.rec_tenure_yrs) || 5,
+                        activeAmount,
+                        equityPct,
+                        debtPct,
+                        isEnabled,
                         idx,
                         now
                     );
@@ -898,8 +1001,8 @@ const dbService = {
                 .maybeSingle();
 
             return {
-                plan,
-                milestones: milestones || [],
+                plan: normalizePlanRecord(plan),
+                milestones: normalizeMilestones(milestones || []),
                 snapshot: snapshot || null
             };
         }
@@ -926,8 +1029,8 @@ const dbService = {
         `).get(plan.id);
 
         return {
-            plan,
-            milestones: milestones || [],
+            plan: normalizePlanRecord(plan),
+            milestones: normalizeMilestones(milestones || []),
             snapshot: snapshot || null
         };
     }

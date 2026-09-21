@@ -33,17 +33,20 @@ function formatIndianCurrency(val) {
  */
 function formatDisplayValue(id, val) {
     val = parseFloat(val) || 0;
+    if (val === 0 && window.fpAuth && window.fpAuth.isFirstTime) {
+        return "";
+    }
     switch (id) {
         case 'inp-age':
         case 'inp-ret-age':
         case 'inp-exhaustion-expected':
-            return Math.round(val) + " Yrs";
+            return val > 0 ? Math.round(val) + " Yrs" : (window.fpAuth && window.fpAuth.isFirstTime ? "" : "0 Yrs");
         case 'inp-pension-delay':
             return Math.round(val) + (val === 1 ? " Yr" : " Yrs");
         case 'inp-initial-corpus':
-            return formatIndianCurrency(val);
+            return val > 0 ? formatIndianCurrency(val) : (window.fpAuth && window.fpAuth.isFirstTime ? "" : "₹ 0");
         case 'inp-initial-sip':
-            return formatIndianCurrency(val) + " / mo";
+            return val > 0 ? formatIndianCurrency(val) + " / mo" : (window.fpAuth && window.fpAuth.isFirstTime ? "" : "₹ 0 / mo");
         case 'inp-stepup':
             return val.toFixed(1) + "% / yr";
         case 'inp-pre-irr':
@@ -57,11 +60,94 @@ function formatDisplayValue(id, val) {
         case 'inp-glide-end':
             return Math.round(val) + " Mos (" + (val / 12).toFixed(1) + " Yrs)";
         case 'inp-expense':
-            return formatIndianCurrency(val) + " / mo";
+            return val > 0 ? formatIndianCurrency(val) + " / mo" : (window.fpAuth && window.fpAuth.isFirstTime ? "" : "₹ 0 / mo");
         default:
-            return val.toString();
+            return val > 0 ? val.toString() : (window.fpAuth && window.fpAuth.isFirstTime ? "" : "0");
     }
 }
+
+/**
+ * Direct Keyboard Typing Handler for .fp-stepper-input fields
+ */
+window.handleDirectTyping = function handleDirectTyping(inputId, rawVal) {
+    const numInput = document.getElementById(inputId);
+    if (!numInput) return;
+
+    let cleaned = (rawVal || '').toString().trim().toLowerCase();
+    cleaned = cleaned.replace(/₹/g, '').replace(/,/g, '').replace(/\s+/g, '');
+
+    let multiplier = 1;
+    if (cleaned.endsWith('cr') || cleaned.endsWith('crore') || cleaned.endsWith('crores')) {
+        multiplier = 10000000;
+        cleaned = cleaned.replace(/crores?|cr/g, '');
+    } else if (cleaned.endsWith('l') || cleaned.endsWith('lakh') || cleaned.endsWith('lakhs')) {
+        multiplier = 100000;
+        cleaned = cleaned.replace(/lakhs?|l/g, '');
+    } else if (cleaned.endsWith('k')) {
+        multiplier = 1000;
+        cleaned = cleaned.replace(/k/g, '');
+    } else {
+        cleaned = cleaned.replace(/[^0-9.]/g, '');
+    }
+
+    let val = parseFloat(cleaned);
+    if (isNaN(val)) val = 0;
+    val = val * multiplier;
+
+    if (val < 0) val = 0;
+    numInput.value = val;
+
+    const sliderId = inputId.replace('inp-', 'slide-');
+    const slider = document.getElementById(sliderId);
+    if (slider) {
+        slider.value = Math.max(parseFloat(slider.min) || 0, Math.min(parseFloat(slider.max) || 100, val));
+        updateSliderVisual(slider);
+    }
+
+    const groupEl = numInput.closest('.fp-control-group');
+    if (groupEl) {
+        const chips = groupEl.querySelectorAll('.fp-chip');
+        chips.forEach(chip => {
+            const chipMatch = chip.getAttribute('onclick')?.includes(val.toString());
+            if (chipMatch) chip.classList.add('active');
+            else chip.classList.remove('active');
+        });
+    }
+
+    if (!window.fpAuth.isFirstTime) {
+        window.updateLiveFreedomSnapshot();
+        updateGlideSummaryBanner();
+    }
+    if (typeof window.triggerDebouncedAutoSave === 'function') {
+        window.triggerDebouncedAutoSave();
+    }
+};
+
+/**
+ * Format stepper display input on blur
+ */
+window.formatControlDisplay = function formatControlDisplay(inputId) {
+    const numInput = document.getElementById(inputId);
+    const dispId = inputId.replace('inp-', 'disp-');
+    const disp = document.getElementById(dispId);
+    if (!numInput || !disp) return;
+
+    let val = parseFloat(numInput.value) || 0;
+    if (numInput.min !== "") val = Math.max(parseFloat(numInput.min), val);
+    if (numInput.max !== "") val = Math.min(parseFloat(numInput.max), val);
+    numInput.value = val;
+
+    const formatted = formatDisplayValue(inputId, val);
+    if (disp.tagName === 'INPUT') {
+        disp.value = formatted;
+    } else {
+        disp.innerText = formatted;
+    }
+
+    if (!window.fpAuth.isFirstTime) {
+        window.updateLiveFreedomSnapshot();
+    }
+};
 
 // ==========================================================================
 // GLIDE PATH & ASSET ALLOCATION ENGINE
@@ -156,8 +242,76 @@ window.updateAllEventRowSummaries = function() {
 // ==========================================================================
 // REAL-TIME RETIREMENT SNAPSHOT ENGINE
 // ==========================================================================
+window.fpRetirementEnabled = true;
+
+window.renderUncalculatedHeroState = function renderUncalculatedHeroState() {
+    const retCorpusEl = document.getElementById('kpi-ret-corpus');
+    if (retCorpusEl) retCorpusEl.innerText = '₹ --';
+
+    const pensionEl = document.getElementById('kpi-monthly-pension');
+    if (pensionEl) pensionEl.innerText = '₹ -- / mo';
+
+    const totalInvestedEl = document.getElementById('kpi-total-invested');
+    if (totalInvestedEl) totalInvestedEl.innerText = '₹ --';
+
+    const yearsLeftEl = document.getElementById('kpi-years-left');
+    if (yearsLeftEl) yearsLeftEl.innerText = '-- Yrs';
+
+    const statusEl = document.getElementById('kpi-freedom-status');
+    if (statusEl) {
+        statusEl.className = 'kpi-freedom-badge badge-warning';
+        statusEl.innerText = 'Awaiting Initial Submission';
+    }
+
+    const progressBar = document.getElementById('kpi-timeline-bar');
+    if (progressBar) progressBar.style.width = '0%';
+
+    const barStart = document.getElementById('kpi-bar-start');
+    if (barStart) barStart.innerText = 'Enter Age';
+
+    const barMid = document.getElementById('kpi-bar-mid');
+    if (barMid) barMid.innerText = 'Retire @ --';
+
+    const barEnd = document.getElementById('kpi-bar-end');
+    if (barEnd) barEnd.innerText = 'Freedom: --';
+};
+
+window.toggleRetirementPlan = function toggleRetirementPlan(enabled) {
+    window.fpRetirementEnabled = !!enabled;
+    window.applyRetirementToggleUI(window.fpRetirementEnabled, true);
+};
+
+window.applyRetirementToggleUI = function applyRetirementToggleUI(enabled, triggerSave = true) {
+    const retControls = document.getElementById('ret-planning-controls');
+    const groupRetAge = document.getElementById('group-ret-age');
+    const disabledBadge = document.getElementById('ret-age-disabled-badge');
+
+    if (enabled) {
+        if (retControls) retControls.classList.remove('fp-control-dimmed');
+        if (groupRetAge) groupRetAge.classList.remove('fp-control-dimmed');
+        if (disabledBadge) disabledBadge.style.display = 'none';
+    } else {
+        if (retControls) retControls.classList.add('fp-control-dimmed');
+        if (groupRetAge) groupRetAge.classList.add('fp-control-dimmed');
+        if (disabledBadge) disabledBadge.style.display = 'inline-block';
+    }
+
+    if (!window.fpAuth.isFirstTime) {
+        window.updateLiveFreedomSnapshot();
+    }
+
+    if (triggerSave && typeof window.triggerDebouncedAutoSave === 'function') {
+        window.triggerDebouncedAutoSave();
+    }
+};
+
 window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
-    const age = parseInt(document.getElementById('inp-age')?.value) || 40;
+    if (window.fpAuth && window.fpAuth.isFirstTime) {
+        window.renderUncalculatedHeroState();
+        return;
+    }
+
+    const age = parseInt(document.getElementById('inp-age')?.value) || 0;
     const retAge = parseInt(document.getElementById('inp-ret-age')?.value) || 60;
     const initialCorpus = parseFloat(document.getElementById('inp-initial-corpus')?.value) || 0;
     const initialSIP = parseFloat(document.getElementById('inp-initial-sip')?.value) || 0;
@@ -170,11 +324,13 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     const initEq = parseFloat(document.getElementById('inp-init-equity')?.value) || 80;
     const startM = parseInt(document.getElementById('inp-glide-start')?.value) || 108;
     const endM = parseInt(document.getElementById('inp-glide-end')?.value) || 12;
+    const isRetOff = !window.fpRetirementEnabled;
     
     // Quick years remaining
-    const yearsLeft = Math.max(0, retAge - age);
+    const effectiveRetAge = isRetOff ? Math.max(age + 20, 60) : retAge;
+    const yearsLeft = isRetOff ? 'Goals Focus' : Math.max(0, retAge - age) + ' Yrs';
     const yearsLeftEl = document.getElementById('kpi-years-left');
-    if (yearsLeftEl) yearsLeftEl.innerText = yearsLeft + " Yrs";
+    if (yearsLeftEl) yearsLeftEl.innerText = yearsLeft;
 
     // Fast simulation loop
     let corpus = initialCorpus;
@@ -182,27 +338,28 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     let corpusAtRetirement = 0;
     let exhaustionAge = null;
     const mPostRate = Math.pow(1 + postIRR, 1 / 12) - 1;
-    const totalRetMonths = Math.max(0, (retAge - age) * 12);
+    const simStartAge = age > 0 ? age : 30;
+    const totalRetMonths = Math.max(0, (effectiveRetAge - simStartAge) * 12);
 
-    for (let a = age; a <= 100; a++) {
+    for (let a = simStartAge; a <= 100; a++) {
         let monthlySIP = 0;
         let monthlySWP = 0;
 
-        if (a <= retAge) {
-            monthlySIP = initialSIP * Math.pow(1 + stepUp, a - age);
+        if (a <= effectiveRetAge) {
+            monthlySIP = initialSIP * Math.pow(1 + stepUp, a - simStartAge);
             totalInvested += (monthlySIP * 12);
         }
 
-        if (a > retAge + pensionDelay && corpus > 0) {
-            monthlySWP = retExpToday * Math.pow(1 + inflation, a - age);
+        if (!isRetOff && a > retAge + pensionDelay && corpus > 0) {
+            monthlySWP = retExpToday * Math.pow(1 + inflation, a - simStartAge);
         }
 
         for (let m = 0; m < 12; m++) {
-            let monthsElapsed = (a - age) * 12 + m;
+            let monthsElapsed = (a - simStartAge) * 12 + m;
             let monthsLeftToRet = totalRetMonths - monthsElapsed;
             let mRate;
 
-            if (a < retAge && monthsLeftToRet > 0) {
+            if (a < effectiveRetAge && monthsLeftToRet > 0) {
                 let alloc = calcGlideAllocation(monthsLeftToRet, initEq, startM, endM);
                 let rAnnual = (alloc.equityPct / 100) * preIRR + (alloc.debtPct / 100) * postIRR;
                 mRate = Math.pow(1 + rAnnual, 1 / 12) - 1;
@@ -218,24 +375,26 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
             }
         }
 
-        if (a === retAge) {
+        if (a === effectiveRetAge) {
             corpusAtRetirement = corpus;
         }
 
-        if (corpus <= 0 && exhaustionAge === null && a > retAge) {
+        if (!isRetOff && corpus <= 0 && exhaustionAge === null && a > retAge) {
             exhaustionAge = a;
         }
     }
 
     // Monthly pension needed at retirement (in future money)
-    const monthlyPensionAtRet = retExpToday * Math.pow(1 + inflation, retAge - age);
+    const monthlyPensionAtRet = isRetOff ? 0 : (retExpToday * Math.pow(1 + inflation, retAge - simStartAge));
 
     // Update KPI UI
     const retCorpusEl = document.getElementById('kpi-ret-corpus');
     if (retCorpusEl) retCorpusEl.innerText = formatIndianCurrency(corpusAtRetirement);
 
     const pensionEl = document.getElementById('kpi-monthly-pension');
-    if (pensionEl) pensionEl.innerText = formatIndianCurrency(monthlyPensionAtRet) + " / mo";
+    if (pensionEl) {
+        pensionEl.innerText = isRetOff ? "Goal Mode (Off)" : formatIndianCurrency(monthlyPensionAtRet) + " / mo";
+    }
 
     const totalInvestedEl = document.getElementById('kpi-total-invested');
     if (totalInvestedEl) totalInvestedEl.innerText = formatIndianCurrency(totalInvested);
@@ -243,7 +402,10 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     // Status Badge
     const statusEl = document.getElementById('kpi-freedom-status');
     if (statusEl) {
-        if (!exhaustionAge || exhaustionAge >= 100) {
+        if (isRetOff) {
+            statusEl.className = 'kpi-freedom-badge badge-success';
+            statusEl.innerText = 'Goal Accumulation Mode';
+        } else if (!exhaustionAge || exhaustionAge >= 100) {
             statusEl.className = 'kpi-freedom-badge badge-success';
             statusEl.innerText = 'Fully Funded (Age 100+)';
         } else if (exhaustionAge > retAge) {
@@ -258,20 +420,30 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     // Progress Bar
     const progressBar = document.getElementById('kpi-timeline-bar');
     if (progressBar) {
-        const totalSpan = Math.max(1, 100 - age);
-        const workSpan = Math.max(0, retAge - age);
-        const pct = Math.min(100, Math.max(10, Math.round((workSpan / totalSpan) * 100)));
-        progressBar.style.width = pct + '%';
+        if (isRetOff) {
+            progressBar.style.width = '100%';
+        } else {
+            const totalSpan = Math.max(1, 100 - simStartAge);
+            const workSpan = Math.max(0, retAge - simStartAge);
+            const pct = Math.min(100, Math.max(10, Math.round((workSpan / totalSpan) * 100)));
+            progressBar.style.width = pct + '%';
+        }
     }
 
     const barStart = document.getElementById('kpi-bar-start');
-    if (barStart) barStart.innerText = `Age ${age} (Now)`;
+    if (barStart) barStart.innerText = simStartAge > 0 ? `Age ${simStartAge} (Now)` : `Now`;
 
     const barMid = document.getElementById('kpi-bar-mid');
-    if (barMid) barMid.innerText = `Retire @ ${retAge}`;
+    if (barMid) barMid.innerText = isRetOff ? `Goal Focus` : `Retire @ ${retAge}`;
 
     const barEnd = document.getElementById('kpi-bar-end');
-    if (barEnd) barEnd.innerText = exhaustionAge ? `Exhaust: ${exhaustionAge}` : `Freedom: 100+`;
+    if (barEnd) {
+        if (isRetOff) {
+            barEnd.innerText = `Accumulate: 100+`;
+        } else {
+            barEnd.innerText = exhaustionAge ? `Exhaust: ${exhaustionAge}` : `Freedom: 100+`;
+        }
+    }
 
     // Record snapshot KPIs for database persistence
     window.fpLastCalculatedSnapshot = {
@@ -331,7 +503,11 @@ function syncControlState(id, val) {
     const dispId = id.replace('inp-', 'disp-');
     const disp = document.getElementById(dispId);
     if (disp) {
-        disp.innerText = formatDisplayValue(id, val);
+        if (disp.tagName === 'INPUT') {
+            disp.value = formatDisplayValue(id, val);
+        } else {
+            disp.innerText = formatDisplayValue(id, val);
+        }
     }
 
     // 3. Update active preset chip
@@ -350,10 +526,12 @@ function syncControlState(id, val) {
     }
 
     // 4. Update Live KPI Snapshot, Glide Banner & Milestone Goals
-    window.updateLiveFreedomSnapshot();
+    if (!window.fpAuth.isFirstTime) {
+        window.updateLiveFreedomSnapshot();
+    }
     updateGlideSummaryBanner();
-    if (typeof window.updateAllEventRowSummaries === 'function') {
-        window.updateAllEventRowSummaries();
+    if (typeof window.renderMilestoneGoalCards === 'function') {
+        window.renderMilestoneGoalCards();
     }
 
     // Trigger auto-save to cloud database
@@ -409,12 +587,18 @@ window.resetCalculatorDefaults = function resetCalculatorDefaults() {
         window.setControlVal('inp-expense', 40000);
         window.setControlVal('inp-pension-delay', 0);
         
-        const eventsContainer = document.getElementById('events-container');
-        if (eventsContainer) eventsContainer.innerHTML = '';
+        window.fpMilestones = [];
+        window.renderMilestoneGoalCards();
         
+        const retToggle = document.getElementById('toggle-retirement');
+        if (retToggle) retToggle.checked = true;
+        window.applyRetirementToggleUI(true, false);
+
         window.updateLiveFreedomSnapshot();
         updateGlideSummaryBanner();
-        window.updateAllEventRowSummaries();
+        if (typeof window.triggerDebouncedAutoSave === 'function') {
+            window.triggerDebouncedAutoSave();
+        }
     }
 };
 
@@ -521,13 +705,13 @@ function collectPlanPayloadFromUI() {
 
     const plan = {
         plan_name: window.fpAuth.activePlanName || 'My Life Plan',
-        current_age: gInt('inp-age', 40),
-        retirement_age: gInt('inp-ret-age', 60),
+        current_age: gInt('inp-age', 0),
+        retirement_age: gInt('inp-ret-age', 0),
         life_expectancy: gInt('inp-exhaustion-expected', 100),
-        current_expense: gNum('inp-expense', 40000),
-        initial_corpus: gNum('inp-initial-corpus', 1000000),
-        initial_sip: gNum('inp-initial-sip', 25000),
-        sip_step_up: gNum('inp-stepup', 10),
+        current_expense: gNum('inp-expense', 0),
+        initial_corpus: gNum('inp-initial-corpus', 0),
+        initial_sip: gNum('inp-initial-sip', 0),
+        sip_step_up: gNum('inp-stepup', 0),
         pre_ret_irr: gNum('inp-pre-irr', 13.5),
         post_ret_irr: gNum('inp-post-irr', 8.0),
         inflation_rate: gNum('inp-inflation', 6.5),
@@ -535,23 +719,36 @@ function collectPlanPayloadFromUI() {
         glide_start_months: gInt('inp-glide-start', 108),
         glide_end_months: gInt('inp-glide-end', 12),
         pension_delay_yrs: gInt('inp-pension-delay', 0),
-        solver_mode: document.getElementById('inp-solver-mode')?.value || 'custom'
+        solver_mode: document.getElementById('inp-solver-mode')?.value || 'custom',
+        is_first_time: window.fpAuth.isFirstTime ? 1 : 0,
+        retirement_enabled: window.fpRetirementEnabled ? 1 : 0
     };
 
-    const milestones = [];
-    document.querySelectorAll('.event-row').forEach((row, idx) => {
-        milestones.push({
-            name: row.querySelector('.ev-name')?.value || `Goal #${idx + 1}`,
-            age: parseInt(row.querySelector('.ev-age')?.value) || 50,
-            pv: parseFloat(row.querySelector('.ev-pv')?.value) || 0,
-            inf: parseFloat(row.querySelector('.ev-inf')?.value) || 7.0,
-            type: row.querySelector('.ev-type')?.value || 'outflow',
-            loanRate: parseFloat(row.querySelector('.ev-loan-rate')?.value) || 8.5,
-            loanYears: parseInt(row.querySelector('.ev-loan-yrs')?.value) || 5,
-            recStepUp: parseFloat(row.querySelector('.ev-rec-stepup')?.value) || 0,
-            recYears: parseInt(row.querySelector('.ev-rec-yrs')?.value) || 5
-        });
-    });
+    const milestones = (window.fpMilestones || []).map(m => ({
+        id: m.id,
+        name: m.name || 'Life Goal',
+        age: m.target_age || 50,
+        target_age: m.target_age || 50,
+        target_year: m.target_year || (new Date().getFullYear() + 5),
+        pv: m.present_value || 0,
+        present_value: m.present_value || 0,
+        active_amount: m.active_amount || 0,
+        equity_pct: m.equity_pct !== undefined ? m.equity_pct : 70,
+        debt_pct: m.debt_pct !== undefined ? m.debt_pct : 30,
+        inf: m.inflation_rate !== undefined ? m.inflation_rate : 7.0,
+        inflation_rate: m.inflation_rate !== undefined ? m.inflation_rate : 7.0,
+        type: m.goal_type || 'outflow',
+        goal_type: m.goal_type || 'outflow',
+        loanRate: m.loan_rate || 8.5,
+        loan_rate: m.loan_rate || 8.5,
+        loanYears: m.loan_tenure_yrs || 5,
+        loan_tenure_yrs: m.loan_tenure_yrs || 5,
+        recStepUp: m.rec_step_up || 0,
+        rec_step_up: m.rec_step_up || 0,
+        recYears: m.rec_tenure_yrs || 5,
+        rec_tenure_yrs: m.rec_tenure_yrs || 5,
+        is_enabled: m.is_enabled !== undefined ? m.is_enabled : 1
+    }));
 
     const snapshot = {
         target_corpus_at_ret: window.fpLastCalculatedSnapshot?.targetCorpusAtRet || 0,
@@ -570,20 +767,27 @@ window.populatePlanToUI = function (plan, milestones) {
     window.isPopulatingPlan = true;
     window.fpAuth.activePlanId = plan.id;
     window.fpAuth.activePlanName = plan.plan_name;
+    window.fpAuth.isFirstTime = (plan.is_first_time === 1 || plan.is_first_time === true);
+    window.fpRetirementEnabled = (plan.retirement_enabled !== 0 && plan.retirement_enabled !== false);
+
+    // Set retirement toggle checkbox UI
+    const retToggle = document.getElementById('toggle-retirement');
+    if (retToggle) retToggle.checked = window.fpRetirementEnabled;
+    window.applyRetirementToggleUI(window.fpRetirementEnabled, false);
 
     const hdrPlanName = document.getElementById('hdr-plan-name');
     if (hdrPlanName) hdrPlanName.innerText = plan.plan_name;
 
-    window.setControlVal('inp-age', plan.current_age);
-    window.setControlVal('inp-ret-age', plan.retirement_age);
+    window.setControlVal('inp-age', plan.current_age || 0);
+    window.setControlVal('inp-ret-age', plan.retirement_age || 0);
     window.setControlVal('inp-exhaustion-expected', plan.life_expectancy || 100);
-    window.setControlVal('inp-expense', plan.current_expense);
-    window.setControlVal('inp-initial-corpus', plan.initial_corpus);
-    window.setControlVal('inp-initial-sip', plan.initial_sip);
-    window.setControlVal('inp-stepup', plan.sip_step_up);
-    window.setControlVal('inp-pre-irr', plan.pre_ret_irr);
-    window.setControlVal('inp-post-irr', plan.post_ret_irr);
-    window.setControlVal('inp-inflation', plan.inflation_rate);
+    window.setControlVal('inp-expense', plan.current_expense || 0);
+    window.setControlVal('inp-initial-corpus', plan.initial_corpus || 0);
+    window.setControlVal('inp-initial-sip', plan.initial_sip || 0);
+    window.setControlVal('inp-stepup', plan.sip_step_up || 0);
+    window.setControlVal('inp-pre-irr', plan.pre_ret_irr || 13.5);
+    window.setControlVal('inp-post-irr', plan.post_ret_irr || 8.0);
+    window.setControlVal('inp-inflation', plan.inflation_rate || 6.5);
     window.setControlVal('inp-init-equity', plan.initial_equity_pct !== undefined ? plan.initial_equity_pct : 80);
     window.setControlVal('inp-glide-start', plan.glide_start_months !== undefined ? plan.glide_start_months : 108);
     window.setControlVal('inp-glide-end', plan.glide_end_months !== undefined ? plan.glide_end_months : 12);
@@ -592,81 +796,560 @@ window.populatePlanToUI = function (plan, milestones) {
     const solverModeEl = document.getElementById('inp-solver-mode');
     if (solverModeEl && plan.solver_mode) solverModeEl.value = plan.solver_mode;
 
-    // Populate milestone goals
-    const container = document.getElementById('events-container');
-    if (container) {
-        container.innerHTML = '';
-        if (Array.isArray(milestones) && milestones.length > 0) {
-            milestones.forEach(m => window.addEventRowWithData(m));
-        }
+    // Populate milestone goals in window.fpMilestones
+    const currentYear = new Date().getFullYear();
+    const currentAge = plan.current_age || 30;
+    window.fpMilestones = (milestones || []).map(m => {
+        const targetAge = m.target_age || m.age || (currentAge + 5);
+        const targetYear = m.target_year || (currentYear + Math.max(1, targetAge - currentAge));
+        return {
+            id: m.id || ('goal_' + Math.random().toString(36).substr(2, 9)),
+            name: m.goal_name || m.name || 'Life Goal',
+            target_year: targetYear,
+            target_age: targetAge,
+            present_value: parseFloat(m.present_value !== undefined ? m.present_value : (m.pv || 0)),
+            active_amount: parseFloat(m.active_amount || 0),
+            equity_pct: m.equity_pct !== undefined ? parseFloat(m.equity_pct) : 70,
+            debt_pct: m.debt_pct !== undefined ? parseFloat(m.debt_pct) : 30,
+            inflation_rate: m.inflation_rate !== undefined ? parseFloat(m.inflation_rate) : (m.inf !== undefined ? parseFloat(m.inf) : 7.0),
+            goal_type: m.goal_type || m.type || 'outflow',
+            loan_rate: parseFloat(m.loan_rate || m.loanRate || 8.5),
+            loan_tenure_yrs: parseInt(m.loan_tenure_yrs || m.loanYears || 5),
+            rec_step_up: parseFloat(m.rec_step_up || m.recStepUp || 0),
+            rec_tenure_yrs: parseInt(m.rec_tenure_yrs || m.recYears || 5),
+            is_enabled: m.is_enabled !== undefined ? m.is_enabled : 1
+        };
+    });
+
+    window.renderMilestoneGoalCards();
+
+    // Handle first-time vs normal button states
+    const firstTimeSubmitBtn = document.getElementById('btn-submit-first-time');
+    const normalActionsGrp = document.getElementById('btn-group-normal-actions');
+
+    if (window.fpAuth.isFirstTime) {
+        if (firstTimeSubmitBtn) firstTimeSubmitBtn.style.display = 'block';
+        if (normalActionsGrp) normalActionsGrp.style.display = 'none';
+        window.renderUncalculatedHeroState();
+    } else {
+        if (firstTimeSubmitBtn) firstTimeSubmitBtn.style.display = 'none';
+        if (normalActionsGrp) normalActionsGrp.style.display = 'flex';
+        window.updateLiveFreedomSnapshot();
     }
 
+    updateGlideSummaryBanner();
     window.isPopulatingPlan = false;
-    window.updateLiveFreedomSnapshot();
-    window.updateAllEventRowSummaries();
 };
 
-window.addEventRowWithData = function (data) {
-    let id = eventRowId++;
+window.handleFirstTimePlanSubmit = async function handleFirstTimePlanSubmit() {
+    const age = parseInt(document.getElementById('inp-age')?.value) || 0;
+    const retAge = parseInt(document.getElementById('inp-ret-age')?.value) || 0;
+
+    if (age <= 0) {
+        alert('Please enter your Current Age (Card 1) before generating your blueprint.');
+        const ageInp = document.getElementById('disp-age');
+        if (ageInp) {
+            ageInp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            ageInp.focus();
+        }
+        return;
+    }
+
+    if (window.fpRetirementEnabled && retAge <= age) {
+        alert('Retirement Age should be greater than Current Age. Please adjust in Card 1.');
+        const retInp = document.getElementById('disp-ret-age');
+        if (retInp) {
+            retInp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            retInp.focus();
+        }
+        return;
+    }
+
+    const submitBtn = document.getElementById('btn-submit-first-time');
+    if (submitBtn) {
+        submitBtn.innerHTML = 'Generating Your Blueprint...';
+        submitBtn.disabled = true;
+    }
+
+    try {
+        window.fpAuth.isFirstTime = false;
+        
+        // Format all control displays now that values are confirmed
+        ['inp-age', 'inp-ret-age', 'inp-initial-corpus', 'inp-initial-sip', 'inp-stepup', 'inp-expense'].forEach(id => {
+            const dispId = id.replace('inp-', 'disp-');
+            const disp = document.getElementById(dispId);
+            const num = document.getElementById(id);
+            if (disp && num) {
+                if (disp.tagName === 'INPUT') disp.value = formatDisplayValue(id, num.value);
+                else disp.innerText = formatDisplayValue(id, num.value);
+            }
+        });
+
+        // Compute live calculations
+        window.updateLiveFreedomSnapshot();
+
+        // Switch bottom button to Save Plan & View Detailed Report
+        if (submitBtn) submitBtn.style.display = 'none';
+        const normalActionsGrp = document.getElementById('btn-group-normal-actions');
+        if (normalActionsGrp) normalActionsGrp.style.display = 'flex';
+
+        // Save plan to database with is_first_time: 0
+        const payload = collectPlanPayloadFromUI();
+        payload.plan.is_first_time = 0;
+        await window.fpApi(`/api/plans/${window.fpAuth.activePlanId}`, 'PUT', payload);
+
+        const pill = document.getElementById('save-status-pill');
+        const pillText = document.getElementById('save-status-text');
+        if (pill) pill.classList.remove('syncing');
+        if (pillText) pillText.innerText = 'Saved';
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+        console.error('Submission error:', err);
+        alert('Failed to save blueprint: ' + err.message);
+        if (submitBtn) {
+            submitBtn.innerHTML = 'Submit Plan &amp; Generate Blueprint &rarr;';
+            submitBtn.disabled = false;
+        }
+    }
+};
+
+window.manualSaveCurrentPlan = async function manualSaveCurrentPlan() {
+    if (!window.fpAuth.token || !window.fpAuth.activePlanId) {
+        alert('Please log in to save your plan.');
+        return;
+    }
+
+    const saveBtn = document.getElementById('btn-save-plan');
+    const origHtml = saveBtn ? saveBtn.innerHTML : '';
+    if (saveBtn) {
+        saveBtn.innerHTML = 'Saving...';
+        saveBtn.disabled = true;
+    }
+
+    const pill = document.getElementById('save-status-pill');
+    const pillText = document.getElementById('save-status-text');
+    if (pill) {
+        pill.classList.add('syncing');
+        if (pillText) pillText.innerText = 'Syncing...';
+    }
+
+    try {
+        const payload = collectPlanPayloadFromUI();
+        await window.fpApi(`/api/plans/${window.fpAuth.activePlanId}`, 'PUT', payload);
+        if (pill) {
+            pill.classList.remove('syncing');
+            if (pillText) pillText.innerText = 'Saved';
+        }
+        if (saveBtn) {
+            saveBtn.innerHTML = '✓ Plan Saved';
+            setTimeout(() => {
+                saveBtn.innerHTML = origHtml;
+                saveBtn.disabled = false;
+            }, 1800);
+        }
+    } catch (err) {
+        console.error('Manual save error:', err);
+        alert('Failed to save plan: ' + err.message);
+        if (pill) {
+            pill.classList.remove('syncing');
+            if (pillText) pillText.innerText = 'Offline';
+        }
+        if (saveBtn) {
+            saveBtn.innerHTML = origHtml;
+            saveBtn.disabled = false;
+        }
+    }
+};
+
+// ==========================================================================
+// LIFE GOALS & MODAL ENGINE
+// ==========================================================================
+window.fpMilestones = [];
+
+window.renderMilestoneGoalCards = function renderMilestoneGoalCards() {
     const container = document.getElementById('events-container');
     if (!container) return;
-    const row = document.createElement('div');
-    row.className = 'event-row';
-    const type = data.goal_type || data.type || 'outflow';
 
-    row.innerHTML = `
-        <div class="ev-grid">
-            <div class="ev-row-top">
-                <input type="text" class="ev-name" placeholder="Goal Name" style="font-weight:600; flex:1;" value="${escapeHtml(data.goal_name || data.name || 'Goal')}" oninput="window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
-                <button type="button" class="ev-del-btn" onclick="this.closest('.event-row').remove(); window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();" title="Remove Goal" aria-label="Remove Goal">&#10005;</button>
+    if (!window.fpMilestones || window.fpMilestones.length === 0) {
+        container.innerHTML = `
+            <div class="fp-empty-goals-prompt">
+                <div class="empty-icon">🎯</div>
+                <div class="empty-title">No Life Goals Configured</div>
+                <div class="empty-desc">Click "Add Life Goal" above to configure your milestone target amount, active earmarked savings, timeline, and asset partition.</div>
             </div>
-            <div class="ev-grid-fields">
-                <div>
-                    <label>Target Year</label>
-                    <input type="number" class="ev-age" value="${data.target_age || data.age || 50}" min="18" max="100" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
+        `;
+        return;
+    }
+
+    const currentAge = parseInt(document.getElementById('inp-age')?.value) || 30;
+    const currentYear = new Date().getFullYear();
+    const eqRate = (parseFloat(document.getElementById('inp-pre-irr')?.value) || 13.5) / 100;
+    const debtRate = (parseFloat(document.getElementById('inp-post-irr')?.value) || 8.0) / 100;
+
+    let html = '';
+    window.fpMilestones.forEach(g => {
+        const targetAge = g.target_age || (currentAge + 5);
+        const targetYear = g.target_year || (currentYear + (targetAge - currentAge));
+        const yearsHorizon = Math.max(1, targetAge - currentAge);
+        const pv = parseFloat(g.present_value) || 0;
+        const activeAmt = parseFloat(g.active_amount) || 0;
+        const inf = (parseFloat(g.inflation_rate) || 7.0) / 100;
+        const eqPct = g.equity_pct !== undefined ? parseFloat(g.equity_pct) : 70;
+        const dtPct = 100 - eqPct;
+
+        const fv = pv * Math.pow(1 + inf, yearsHorizon);
+        const rAnnual = (eqPct / 100) * eqRate + (dtPct / 100) * debtRate;
+        const activeFV = activeAmt * Math.pow(1 + rAnnual, yearsHorizon);
+        const netGapFV = Math.max(0, fv - activeFV);
+
+        const mRate = Math.pow(1 + rAnnual, 1 / 12) - 1;
+        const months = yearsHorizon * 12;
+        let sipAcc = 0;
+        for (let t = 0; t < months; t++) {
+            sipAcc = (sipAcc + 1) * (1 + mRate);
+        }
+        const reqSIP = (netGapFV > 0 && sipAcc > 0) ? (netGapFV / sipAcc) : 0;
+        const fundedPct = fv > 0 ? Math.min(100, Math.round((activeFV / fv) * 100)) : 0;
+
+        let typeBadge = '';
+        if (g.goal_type === 'recurring-outflow') typeBadge = 'Recurring Outflow';
+        else if (g.goal_type === 'loan') typeBadge = 'Loan Assisted';
+        else if (g.goal_type === 'inflow') typeBadge = 'Inflow / Liquidation';
+        else typeBadge = 'Lumpsum Outflow';
+
+        html += `
+            <div class="fp-goal-card" id="goal-card-${g.id}">
+                <div class="fp-goal-card-top">
+                    <div class="fp-goal-card-title-wrap">
+                        <span class="fp-goal-icon">🎯</span>
+                        <div>
+                            <div class="fp-goal-title">${escapeHtml(g.name || 'Life Milestone')}</div>
+                            <span class="fp-goal-badge">${typeBadge} • Target Age ${targetAge} (${targetYear})</span>
+                        </div>
+                    </div>
+                    <div class="fp-goal-actions">
+                        <button type="button" class="fp-btn-goal-edit" onclick="openEditGoalModal('${g.id}')">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Edit
+                        </button>
+                        <button type="button" class="ev-del-btn" onclick="deleteMilestoneGoal('${g.id}')" title="Delete Goal">&times;</button>
+                    </div>
                 </div>
-                <div>
-                    <label>Amount Today (₹ PV)</label>
-                    <input type="number" class="ev-pv" value="${data.present_value || data.pv || 500000}" min="0" step="50000" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
+
+                <div class="fp-goal-grid">
+                    <div class="fp-goal-kpi">
+                        <span class="kpi-lbl">Target Cost Today (PV)</span>
+                        <span class="kpi-val">${formatIndianCurrency(pv)}</span>
+                    </div>
+                    <div class="fp-goal-kpi">
+                        <span class="kpi-lbl">Inflated Target (FV)</span>
+                        <span class="kpi-val" style="color: var(--brand-navy);">${formatIndianCurrency(fv)}</span>
+                    </div>
+                    <div class="fp-goal-kpi">
+                        <span class="kpi-lbl">Active Earmarked</span>
+                        <span class="kpi-val" style="color: #059669;">${formatIndianCurrency(activeAmt)}</span>
+                    </div>
+                    <div class="fp-goal-kpi">
+                        <span class="kpi-lbl">Required Monthly SIP</span>
+                        <span class="kpi-val" style="color: #2563eb;">${fmtINR_plain(reqSIP)} / mo</span>
+                    </div>
                 </div>
-                <div>
-                    <label>Inflation (%)</label>
-                    <input type="number" class="ev-inf" value="${data.inflation_rate !== undefined ? data.inflation_rate : (data.inf || 7)}" step="0.5" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
-                </div>
-                <div>
-                    <label>Event Type</label>
-                    <select class="ev-type" onchange="window.toggleEventFields(this); window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
-                        <option value="outflow" ${type === 'outflow' || type === 'lumpsum' ? 'selected' : ''}>Outflow (Lumpsum)</option>
-                        <option value="recurring-outflow" ${type === 'recurring-outflow' || type === 'recurring_outflow' ? 'selected' : ''}>Outflow (Recurring)</option>
-                        <option value="inflow" ${type === 'inflow' || type === 'recurring_inflow' ? 'selected' : ''}>Inflow</option>
-                        <option value="loan" ${type === 'loan' ? 'selected' : ''}>Loan (EMI Outflow)</option>
-                    </select>
-                </div>
-                <div class="loan-fields" style="${type === 'loan' ? '' : 'display:none; opacity:0.5;'}">
-                    <label>Loan Rate (%)</label>
-                    <input type="number" class="ev-loan-rate" value="${data.loan_rate || data.loanRate || 8.5}" step="0.1" ${type === 'loan' ? '' : 'disabled'} oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
-                </div>
-                <div class="loan-fields" style="${type === 'loan' ? '' : 'display:none; opacity:0.5;'}">
-                    <label>Tenure (Yrs)</label>
-                    <input type="number" class="ev-loan-yrs" value="${data.loan_tenure_yrs || data.loanYears || 5}" min="1" ${type === 'loan' ? '' : 'disabled'} oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
-                </div>
-                <div class="recurring-fields" style="${type.includes('recurring') ? '' : 'display:none; opacity:0.5;'}">
-                    <label>Step-Up (%/yr)</label>
-                    <input type="number" class="ev-rec-stepup" value="${data.rec_step_up || data.recStepUp || 0}" step="0.5" ${type.includes('recurring') ? '' : 'disabled'} oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
-                </div>
-                <div class="recurring-fields" style="${type.includes('recurring') ? '' : 'display:none; opacity:0.5;'}">
-                    <label>Duration (Yrs)</label>
-                    <input type="number" class="ev-rec-yrs" value="${data.rec_tenure_yrs || data.recYears || 5}" min="1" ${type.includes('recurring') ? '' : 'disabled'} oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
+
+                <div class="fp-goal-alloc-row">
+                    <div class="alloc-lbl-row">
+                        <span>Asset Mix: <strong>${eqPct}% Equity / ${dtPct}% Debt</strong></span>
+                        <span>Funded: <strong>${fundedPct}%</strong></span>
+                    </div>
+                    <div class="fp-alloc-bar-preview">
+                        <div class="alloc-bar-eq" style="width: ${eqPct}%;">${eqPct >= 15 ? eqPct + '% Eq' : ''}</div>
+                        <div class="alloc-bar-dt" style="width: ${dtPct}%;">${dtPct >= 15 ? dtPct + '% Dt' : ''}</div>
+                    </div>
                 </div>
             </div>
-            <div class="ev-row-summary">
-                <span class="ev-sum-pill ev-pill-fv">Target FV: <strong class="ev-fv-val">₹ 0</strong></span>
-                <span class="ev-sum-pill ev-pill-sip">Earmarked SIP: <strong class="ev-sip-val">₹ 0 / mo</strong></span>
-                <span class="ev-sum-pill ev-pill-mix">Current Mix: <strong class="ev-mix-val">80% Eq / 20% Dt</strong></span>
-            </div>
-        </div>
-    `;
-    container.appendChild(row);
+        `;
+    });
+
+    container.innerHTML = html;
+};
+
+window.openAddGoalModal = function openAddGoalModal() {
+    const modal = document.getElementById('modal-goal-detail');
+    if (!modal) return;
+
+    document.getElementById('goal-modal-title').innerText = 'Add Life Milestone Goal';
+    document.getElementById('goal-modal-id').value = '';
+    document.getElementById('goal-modal-name').value = '';
+    document.getElementById('goal-modal-pv').value = '';
+    document.getElementById('goal-modal-active').value = '0';
+
+    const currentAge = parseInt(document.getElementById('inp-age')?.value) || 30;
+    document.getElementById('goal-modal-age').value = currentAge + 5;
+    document.getElementById('goal-modal-inf').value = '7.0';
+    document.getElementById('goal-modal-type').value = 'outflow';
+    document.getElementById('goal-modal-duration').value = '5';
+    document.getElementById('goal-modal-rec-stepup').value = '5';
+    document.getElementById('goal-modal-equity-range').value = '80';
+
+    window.updateGoalModalAllocDisplay(80);
+    window.toggleGoalModalTypeFields('outflow');
+    window.updateGoalModalHints();
+
+    const delBtn = document.getElementById('btn-delete-goal-modal');
+    if (delBtn) delBtn.style.display = 'none';
+
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        const nameInp = document.getElementById('goal-modal-name');
+        if (nameInp) nameInp.focus();
+    }, 50);
+};
+
+window.openEditGoalModal = function openEditGoalModal(goalId) {
+    const modal = document.getElementById('modal-goal-detail');
+    if (!modal) return;
+
+    const goal = (window.fpMilestones || []).find(m => m.id === goalId);
+    if (!goal) return;
+
+    document.getElementById('goal-modal-title').innerText = `Edit Life Goal: ${goal.name || 'Milestone'}`;
+    document.getElementById('goal-modal-id').value = goal.id;
+    document.getElementById('goal-modal-name').value = goal.name || '';
+    document.getElementById('goal-modal-pv').value = goal.present_value || 0;
+    document.getElementById('goal-modal-active').value = goal.active_amount || 0;
+    document.getElementById('goal-modal-age').value = goal.target_age || 50;
+    document.getElementById('goal-modal-inf').value = goal.inflation_rate !== undefined ? goal.inflation_rate : 7.0;
+    document.getElementById('goal-modal-type').value = goal.goal_type || 'outflow';
+    document.getElementById('goal-modal-duration').value = goal.rec_tenure_yrs || goal.loan_tenure_yrs || 5;
+    document.getElementById('goal-modal-rec-stepup').value = goal.rec_step_up || 5;
+
+    const eqPct = goal.equity_pct !== undefined ? goal.equity_pct : 70;
+    document.getElementById('goal-modal-equity-range').value = eqPct;
+
+    window.updateGoalModalAllocDisplay(eqPct);
+    window.toggleGoalModalTypeFields(goal.goal_type || 'outflow');
+    window.updateGoalModalHints();
+
+    const delBtn = document.getElementById('btn-delete-goal-modal');
+    if (delBtn) delBtn.style.display = 'block';
+
+    modal.style.display = 'flex';
+};
+
+window.closeGoalModal = function closeGoalModal() {
+    const modal = document.getElementById('modal-goal-detail');
+    if (modal) modal.style.display = 'none';
+};
+
+window.updateGoalModalAllocDisplay = function updateGoalModalAllocDisplay(val) {
+    const eq = Math.min(100, Math.max(0, parseInt(val) || 0));
+    const dt = 100 - eq;
+
+    const disp = document.getElementById('goal-modal-alloc-disp');
+    if (disp) disp.innerText = `${eq}% Equity | ${dt}% Debt`;
+
+    const fillEq = document.getElementById('goal-alloc-fill-eq');
+    if (fillEq) {
+        fillEq.style.width = eq + '%';
+        fillEq.innerText = eq >= 15 ? `${eq}% Eq` : '';
+    }
+
+    const fillDt = document.getElementById('goal-alloc-fill-dt');
+    if (fillDt) {
+        fillDt.style.width = dt + '%';
+        fillDt.innerText = dt >= 15 ? `${dt}% Dt` : '';
+    }
+
+    window.updateGoalModalHints();
+};
+
+window.updateGoalModalHints = function updateGoalModalHints() {
+    const pv = parseFloat(document.getElementById('goal-modal-pv')?.value) || 0;
+    const active = parseFloat(document.getElementById('goal-modal-active')?.value) || 0;
+    const net = Math.max(0, pv - active);
+
+    const pvHint = document.getElementById('goal-modal-pv-hint');
+    if (pvHint) pvHint.innerText = pv > 0 ? formatIndianCurrency(pv) : '₹ 0';
+
+    const activeHint = document.getElementById('goal-modal-active-hint');
+    if (activeHint) activeHint.innerText = `${formatIndianCurrency(active)} (Net PV Gap: ${formatIndianCurrency(net)})`;
+};
+
+window.toggleGoalModalTypeFields = function toggleGoalModalTypeFields(type) {
+    const extra = document.getElementById('goal-modal-extra-fields');
+    if (extra) {
+        extra.style.display = (type === 'recurring-outflow' || type === 'loan') ? 'block' : 'none';
+    }
+};
+
+window.handleGoalModalSubmit = function handleGoalModalSubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('goal-modal-id').value;
+    const name = document.getElementById('goal-modal-name').value.trim() || 'Life Goal';
+    const pv = parseFloat(document.getElementById('goal-modal-pv').value) || 0;
+    const activeAmt = parseFloat(document.getElementById('goal-modal-active').value) || 0;
+    const targetAge = parseInt(document.getElementById('goal-modal-age').value) || 50;
+    const inf = parseFloat(document.getElementById('goal-modal-inf').value) || 7.0;
+    const goalType = document.getElementById('goal-modal-type').value || 'outflow';
+    const duration = parseInt(document.getElementById('goal-modal-duration').value) || 5;
+    const recStepUp = parseFloat(document.getElementById('goal-modal-rec-stepup').value) || 0;
+    const eqPct = parseFloat(document.getElementById('goal-modal-equity-range').value) || 70;
+    const dtPct = 100 - eqPct;
+
+    const currentAge = parseInt(document.getElementById('inp-age')?.value) || 30;
+    const currentYear = new Date().getFullYear();
+    const targetYear = currentYear + Math.max(1, targetAge - currentAge);
+
+    const goalObj = {
+        id: id || ('goal_' + Date.now()),
+        name: name,
+        target_year: targetYear,
+        target_age: targetAge,
+        present_value: pv,
+        active_amount: activeAmt,
+        equity_pct: eqPct,
+        debt_pct: dtPct,
+        inflation_rate: inf,
+        goal_type: goalType,
+        loan_rate: 8.5,
+        loan_tenure_yrs: duration,
+        rec_step_up: recStepUp,
+        rec_tenure_yrs: duration,
+        is_enabled: 1
+    };
+
+    if (id) {
+        const idx = window.fpMilestones.findIndex(m => m.id === id);
+        if (idx !== -1) window.fpMilestones[idx] = goalObj;
+        else window.fpMilestones.push(goalObj);
+    } else {
+        window.fpMilestones.push(goalObj);
+    }
+
+    window.closeGoalModal();
+    window.renderMilestoneGoalCards();
+    if (!window.fpAuth.isFirstTime) {
+        window.updateLiveFreedomSnapshot();
+    }
+
+    const reportContainer = document.getElementById('fp-report-container');
+    if (reportContainer && !reportContainer.classList.contains('fp-report-hidden')) {
+        window.renderGoalsSummaryTable();
+    }
+
+    if (typeof window.triggerDebouncedAutoSave === 'function') {
+        window.triggerDebouncedAutoSave();
+    }
+};
+
+window.handleDeleteGoalFromModal = function handleDeleteGoalFromModal() {
+    const id = document.getElementById('goal-modal-id').value;
+    if (!id) return;
+    if (confirm('Delete this life goal milestone?')) {
+        window.deleteMilestoneGoal(id);
+        window.closeGoalModal();
+    }
+};
+
+window.deleteMilestoneGoal = function deleteMilestoneGoal(goalId) {
+    window.fpMilestones = (window.fpMilestones || []).filter(m => m.id !== goalId);
+    window.renderMilestoneGoalCards();
+    if (!window.fpAuth.isFirstTime) {
+        window.updateLiveFreedomSnapshot();
+    }
+
+    const reportContainer = document.getElementById('fp-report-container');
+    if (reportContainer && !reportContainer.classList.contains('fp-report-hidden')) {
+        window.renderGoalsSummaryTable();
+    }
+
+    if (typeof window.triggerDebouncedAutoSave === 'function') {
+        window.triggerDebouncedAutoSave();
+    }
+};
+
+window.toggleGoalsAccordion = function toggleGoalsAccordion() {
+    const card = document.getElementById('goals-accordion-card');
+    if (card) {
+        card.classList.toggle('open');
+    }
+};
+
+window.renderGoalsSummaryTable = function renderGoalsSummaryTable() {
+    const tbody = document.getElementById('goals-summary-tbody');
+    const countBadge = document.getElementById('goals-accordion-count');
+    if (!tbody) return;
+
+    const milestones = window.fpMilestones || [];
+    const count = milestones.length;
+
+    if (countBadge) {
+        countBadge.innerText = `${count} Goal${count === 1 ? '' : 's'} Configured`;
+    }
+
+    if (count === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#64748b;">No milestone goals configured. Click "Add Life Goal" in Card 5 to add goals.</td></tr>`;
+        return;
+    }
+
+    const currentAge = parseInt(document.getElementById('inp-age')?.value) || 30;
+    const currentYear = new Date().getFullYear();
+    const eqRate = (parseFloat(document.getElementById('inp-pre-irr')?.value) || 13.5) / 100;
+    const debtRate = (parseFloat(document.getElementById('inp-post-irr')?.value) || 8.0) / 100;
+
+    let html = '';
+    milestones.forEach(g => {
+        const targetAge = g.target_age || (currentAge + 5);
+        const targetYear = g.target_year || (currentYear + (targetAge - currentAge));
+        const yearsHorizon = Math.max(1, targetAge - currentAge);
+        const pv = parseFloat(g.present_value) || 0;
+        const activeAmt = parseFloat(g.active_amount) || 0;
+        const inf = (parseFloat(g.inflation_rate) || 7.0) / 100;
+        const eqPct = g.equity_pct !== undefined ? parseFloat(g.equity_pct) : 70;
+        const dtPct = 100 - eqPct;
+
+        const fv = pv * Math.pow(1 + inf, yearsHorizon);
+        const rAnnual = (eqPct / 100) * eqRate + (dtPct / 100) * debtRate;
+        const activeFV = activeAmt * Math.pow(1 + rAnnual, yearsHorizon);
+        const netGapFV = Math.max(0, fv - activeFV);
+
+        const mRate = Math.pow(1 + rAnnual, 1 / 12) - 1;
+        const months = yearsHorizon * 12;
+        let sipAcc = 0;
+        for (let t = 0; t < months; t++) {
+            sipAcc = (sipAcc + 1) * (1 + mRate);
+        }
+        const reqSIP = (netGapFV > 0 && sipAcc > 0) ? (netGapFV / sipAcc) : 0;
+        const fundedPct = fv > 0 ? Math.min(100, Math.round((activeFV / fv) * 100)) : 0;
+
+        let statusPill = '';
+        if (fundedPct >= 100) {
+            statusPill = '<span class="badge-status-pill badge-status-funded">● Fully Earmarked</span>';
+        } else if (fundedPct > 0) {
+            statusPill = `<span class="badge-status-pill badge-status-partial">● ${fundedPct}% Earmarked</span>`;
+        } else {
+            statusPill = '<span class="badge-status-pill badge-status-deficit">● Needs Funding</span>';
+        }
+
+        html += `
+            <tr>
+                <td><strong>${escapeHtml(g.name || 'Milestone Goal')}</strong></td>
+                <td>${targetYear} (Age ${targetAge})</td>
+                <td>${fmtINR_plain(pv)}</td>
+                <td style="color:#059669; font-weight:600;">${fmtINR_plain(activeAmt)}</td>
+                <td style="color:var(--brand-navy); font-weight:700;">${fmtINR_plain(fv)}</td>
+                <td>
+                    <span class="badge-asset-mix ${eqPct >= 70 ? 'mix-equity' : (eqPct <= 30 ? 'mix-debt' : 'mix-transition')}">
+                        ${eqPct}% Eq / ${dtPct}% Dt
+                    </span>
+                </td>
+                <td style="color:#2563eb; font-weight:700;">${reqSIP > 0 ? fmtINR_plain(reqSIP) + ' / mo' : 'Fully Funded'}</td>
+                <td>${statusPill}</td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
 };
 
 // TAB SWITCHING (SIGN IN / REGISTER)
@@ -1145,7 +1828,13 @@ document.addEventListener('DOMContentLoaded', () => {
             updateSliderVisual(slider);
             const dispId = inputId.replace('inp-', 'disp-');
             const disp = document.getElementById(dispId);
-            if (disp) disp.innerText = formatDisplayValue(inputId, numberInput.value);
+            if (disp) {
+                if (disp.tagName === 'INPUT') {
+                    disp.value = formatDisplayValue(inputId, numberInput.value);
+                } else {
+                    disp.innerText = formatDisplayValue(inputId, numberInput.value);
+                }
+            }
 
             slider.addEventListener('input', (e) => {
                 numberInput.value = e.target.value;
@@ -1160,114 +1849,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 3. Run Initial Snapshot & Milestone Calculations
-    window.updateLiveFreedomSnapshot();
+    if (!window.fpAuth.isFirstTime) {
+        window.updateLiveFreedomSnapshot();
+    }
     updateGlideSummaryBanner();
-    window.updateAllEventRowSummaries();
+    if (typeof window.renderMilestoneGoalCards === 'function') {
+        window.renderMilestoneGoalCards();
+    }
 });
-
 // ==========================================================================
-// LIFE GOALS & EVENTS (MOBILE-FRIENDLY CARD BUILDER)
+// DETAILED REPORT GENERATION
 // ==========================================================================
-let eventRowId = 0;
-window.addEventRow = function addEventRow() {
-    let id = eventRowId++;
-    const container = document.getElementById('events-container');
-    const row = document.createElement('div');
-    row.className = 'event-row';
-    const currentYear = new Date().getFullYear();
-    row.innerHTML = `
-        <div class="ev-grid">
-            <div class="ev-row-top">
-                <input type="text" class="ev-name" placeholder="Goal Name (e.g. Higher Edu / House / Car)" style="font-weight:600; flex:1;" value="Life Goal #${id + 1}" oninput="window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
-                <button type="button" class="ev-del-btn" onclick="this.closest('.event-row').remove(); window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();" title="Remove Goal" aria-label="Remove Goal">&#10005;</button>
-            </div>
-            <div class="ev-grid-fields">
-                <div>
-                    <label>Target Year</label>
-                    <input type="number" class="ev-age" value="${currentYear + 5}" min="${currentYear}" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
-                </div>
-                <div>
-                    <label>Amount Today (₹ PV)</label>
-                    <input type="number" class="ev-pv" value="500000" min="0" step="50000" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
-                </div>
-                <div>
-                    <label>Inflation (%)</label>
-                    <input type="number" class="ev-inf" value="7" step="0.5" oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
-                </div>
-                <div>
-                    <label>Event Type</label>
-                    <select class="ev-type" onchange="window.toggleEventFields(this); window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
-                        <option value="outflow">Outflow (Lumpsum)</option>
-                        <option value="recurring-outflow">Outflow (Recurring)</option>
-                        <option value="inflow">Inflow</option>
-                        <option value="loan">Loan (EMI Outflow)</option>
-                    </select>
-                </div>
-                <div class="loan-fields" style="display:none; opacity:0.5;">
-                    <label>Loan Rate (%)</label>
-                    <input type="number" class="ev-loan-rate" value="8.5" step="0.1" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
-                </div>
-                <div class="loan-fields" style="display:none; opacity:0.5;">
-                    <label>Tenure (Yrs)</label>
-                    <input type="number" class="ev-loan-yrs" value="5" min="1" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
-                </div>
-                <div class="recurring-fields" style="display:none; opacity:0.5;">
-                    <label>Step-Up (%/yr)</label>
-                    <input type="number" class="ev-rec-stepup" value="0" step="0.5" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
-                </div>
-                <div class="recurring-fields" style="display:none; opacity:0.5;">
-                    <label>Duration (Yrs)</label>
-                    <input type="number" class="ev-rec-yrs" value="5" min="1" disabled oninput="window.updateLiveFreedomSnapshot(); window.updateAllEventRowSummaries(); window.triggerDebouncedAutoSave();">
-                </div>
-            </div>
-            <div class="ev-row-summary">
-                <span class="ev-sum-pill ev-pill-fv">Target FV: <strong class="ev-fv-val">₹ 0</strong></span>
-                <span class="ev-sum-pill ev-pill-sip">Earmarked SIP: <strong class="ev-sip-val">₹ 0 / mo</strong></span>
-                <span class="ev-sum-pill ev-pill-mix">Current Mix: <strong class="ev-mix-val">80% Eq / 20% Dt</strong></span>
-            </div>
-        </div>
-    `;
-    container.appendChild(row);
-    window.updateLiveFreedomSnapshot();
-    window.updateAllEventRowSummaries();
-    window.triggerDebouncedAutoSave();
-};
-
-window.toggleEventFields = function(selectEl) {
-    const parentRow = selectEl.closest('.ev-grid');
-    const loanFields = parentRow.querySelectorAll('.loan-fields');
-    const recurringFields = parentRow.querySelectorAll('.recurring-fields');
-
-    if (selectEl.value === 'loan') {
-        loanFields.forEach(f => {
-            f.style.display = 'block';
-            f.style.opacity = '1';
-            f.querySelector('input').disabled = false;
-        });
-    } else {
-        loanFields.forEach(f => {
-            f.style.display = 'none';
-            f.style.opacity = '0.5';
-            f.querySelector('input').disabled = true;
-        });
-    }
-
-    if (selectEl.value === 'recurring-outflow') {
-        recurringFields.forEach(f => {
-            f.style.display = 'block';
-            f.style.opacity = '1';
-            f.querySelector('input').disabled = false;
-        });
-    } else {
-        recurringFields.forEach(f => {
-            f.style.display = 'none';
-            f.style.opacity = '0.5';
-            f.querySelector('input').disabled = true;
-        });
-    }
-};
-window.toggleLoanFields = window.toggleEventFields;
-
 window.toggleExhaustionAge = function() {
     const mode = document.getElementById('inp-solver-mode')?.value;
     const group = document.getElementById('group-exhaustion-age');
@@ -1277,12 +1869,11 @@ window.toggleExhaustionAge = function() {
     } else {
         group.style.display = 'none';
     }
-    window.updateLiveFreedomSnapshot();
+    if (!window.fpAuth.isFirstTime) {
+        window.updateLiveFreedomSnapshot();
+    }
 };
 
-// ==========================================================================
-// DETAILED REPORT GENERATION
-// ==========================================================================
 window.generateFreedomReport = function generateFreedomReport() {
     const reportContainer = document.getElementById('fp-report-container');
     if (reportContainer) reportContainer.classList.remove('fp-report-hidden');
@@ -1293,7 +1884,7 @@ window.generateFreedomReport = function generateFreedomReport() {
     const detailsEl = document.getElementById('report-lead-details');
     if (detailsEl) detailsEl.innerText = nameStr;
 
-    const age = parseInt(document.getElementById('inp-age').value) || 40;
+    const age = parseInt(document.getElementById('inp-age').value) || 30;
     const retAge = parseInt(document.getElementById('inp-ret-age').value) || 60;
     const initialCorpus = document.getElementById('inp-initial-corpus').value === '' ? 0 : parseFloat(document.getElementById('inp-initial-corpus').value);
     const initialSIP = document.getElementById('inp-initial-sip').value === '' ? 0 : parseFloat(document.getElementById('inp-initial-sip').value);
@@ -1308,25 +1899,35 @@ window.generateFreedomReport = function generateFreedomReport() {
     const initEq = parseFloat(document.getElementById('inp-init-equity')?.value) || 80;
     const startM = parseInt(document.getElementById('inp-glide-start')?.value) || 108;
     const endM = parseInt(document.getElementById('inp-glide-end')?.value) || 12;
-    const totalRetMonths = Math.max(0, (retAge - age) * 12);
+    const isRetOff = !window.fpRetirementEnabled;
+    const effectiveRetAge = isRetOff ? Math.max(age + 20, 60) : retAge;
+    const totalRetMonths = Math.max(0, (effectiveRetAge - age) * 12);
     
     const currentYear = new Date().getFullYear();
 
-    const eventRows = document.querySelectorAll('.event-row');
+    // Construct events array from window.fpMilestones
     const baseEvents = [];
-    eventRows.forEach(row => {
-        const enteredYear = parseInt(row.querySelector('.ev-age').value) || currentYear;
-        const targetAge = age + (enteredYear - currentYear);
+    (window.fpMilestones || []).forEach(g => {
+        const targetAge = g.target_age || (age + Math.max(1, (g.target_year || currentYear + 5) - currentYear));
+        const pv = parseFloat(g.present_value) || 0;
+        const activeAmt = parseFloat(g.active_amount) || 0;
+        const inf = (parseFloat(g.inflation_rate) || 7.0) / 100;
+        const eqPct = g.equity_pct !== undefined ? parseFloat(g.equity_pct) : 70;
+        const dtPct = 100 - eqPct;
+
         baseEvents.push({
             age: targetAge,
-            name: row.querySelector('.ev-name').value || '',
-            pv: parseFloat(row.querySelector('.ev-pv').value) || 0,
-            inflation: (parseFloat(row.querySelector('.ev-inf').value) || 0) / 100,
-            type: row.querySelector('.ev-type').value,
-            loanRate: row.querySelector('.ev-loan-rate') ? (parseFloat(row.querySelector('.ev-loan-rate').value) || 8.5) / 100 : 0.085,
-            loanYears: row.querySelector('.ev-loan-yrs') ? (parseInt(row.querySelector('.ev-loan-yrs').value) || 5) : 5,
-            recStepUp: row.querySelector('.ev-rec-stepup') ? (parseFloat(row.querySelector('.ev-rec-stepup').value) || 0) / 100 : 0,
-            recYears: row.querySelector('.ev-rec-yrs') ? (parseInt(row.querySelector('.ev-rec-yrs').value) || 5) : 5
+            name: g.name || 'Life Goal',
+            pv: pv,
+            activeAmt: activeAmt,
+            eqPct: eqPct,
+            dtPct: dtPct,
+            inflation: inf,
+            type: g.goal_type || 'outflow',
+            loanRate: (parseFloat(g.loan_rate) || 8.5) / 100,
+            loanYears: parseInt(g.loan_tenure_yrs) || 5,
+            recStepUp: (parseFloat(g.rec_step_up) || 0) / 100,
+            recYears: parseInt(g.rec_tenure_yrs) || 5
         });
     });
 
@@ -1370,11 +1971,12 @@ window.generateFreedomReport = function generateFreedomReport() {
             let monthlySWP = 0;
             let isFirstYear = (a === age);
 
-            if (a <= retAge) {
+            if (a <= effectiveRetAge) {
                 monthlySIP = simInitialSIP * Math.pow(1 + stepUp, a - age);
             }
 
-            if (a > retAge + pensionDelay && corpus > 0) {
+            // Retirement SWP is bypassed if retirement planning is toggled OFF
+            if (!isRetOff && a > retAge + pensionDelay && corpus > 0) {
                 monthlySWP = retExpToday * Math.pow(1 + inflation, a - age);
                 totalWithdrawals += (monthlySWP * 12);
             }
@@ -1393,9 +1995,9 @@ window.generateFreedomReport = function generateFreedomReport() {
                     let n = durationYrs * 12;
                     let emi = (loanInflatedTarget * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
                     
-                    pvText = `<span style="color:#e63946">${ev.pv}, ${(ev.inflation * 100).toFixed(0)}%</span>`;
+                    pvText = `<span style="color:#e63946">${formatIndianCurrency(ev.pv)}, ${(ev.inflation * 100).toFixed(0)}%</span>`;
                     rowPVs.push(pvText);
-                    rowDetails.push(`<span style="color:#e63946">${ev.name} (EMI out)</span>`);
+                    rowDetails.push(`<span style="color:#e63946">${escapeHtml(ev.name)} (EMI out)</span>`);
                     rowOutflow += (emi * 12); 
                     totalWithdrawals += (emi * 12);
 
@@ -1416,16 +2018,16 @@ window.generateFreedomReport = function generateFreedomReport() {
                         }
                     }
                 } else if (ev.type === 'emi-outflow') {
-                     rowDetails.push(`<span style="color:#e63946">${ev.name} (EMI cont.)</span>`);
+                     rowDetails.push(`<span style="color:#e63946">${escapeHtml(ev.name)} (EMI cont.)</span>`);
                      rowOutflow += ev.emiAmount;
                      totalWithdrawals += ev.emiAmount;
                 } else if (ev.type === 'recurring-outflow') {
                     let baseAmt = ev.pv * Math.pow(1 + ev.inflation, a - age);
                     let yearAmt = ev.isRecStep ? ev.recurringAmount : baseAmt;
 
-                    pvText = `<span style="color:#e63946">${ev.isRecStep ? '' : ev.pv + ', ' + (ev.inflation * 100).toFixed(0) + '%'}</span>`;
+                    pvText = `<span style="color:#e63946">${ev.isRecStep ? '' : formatIndianCurrency(ev.pv) + ', ' + (ev.inflation * 100).toFixed(0) + '%'}</span>`;
                     if (!ev.isRecStep) rowPVs.push(pvText);
-                    let stepLabel = ev.isRecStep ? `${ev.name} (Yr ${ev.recYearNum})` : `${ev.name} (Recurring)`;
+                    let stepLabel = ev.isRecStep ? `${escapeHtml(ev.name)} (Yr ${ev.recYearNum})` : `${escapeHtml(ev.name)} (Recurring)`;
                     rowDetails.push(`<span style="color:#e63946">${stepLabel}</span>`);
                     rowOutflow += yearAmt;
                     totalWithdrawals += yearAmt;
@@ -1453,15 +2055,15 @@ window.generateFreedomReport = function generateFreedomReport() {
                 } else {
                     inflatedAmt = ev.pv * Math.pow(1 + ev.inflation, a - age);
                     if (ev.type === 'inflow') {
-                        pvText = `<span style="color:#10b981">${ev.pv}, ${(ev.inflation * 100).toFixed(0)}%</span>`;
+                        pvText = `<span style="color:#10b981">${formatIndianCurrency(ev.pv)}, ${(ev.inflation * 100).toFixed(0)}%</span>`;
                         rowPVs.push(pvText);
-                        rowDetails.push(`<span style="color:#10b981">${ev.name}</span>`);
+                        rowDetails.push(`<span style="color:#10b981">${escapeHtml(ev.name)}</span>`);
                         rowInflow += inflatedAmt;
                         totalInvestments += inflatedAmt;
                     } else {
-                        pvText = `<span style="color:#e63946">${ev.pv}, ${(ev.inflation * 100).toFixed(0)}%</span>`;
+                        pvText = `<span style="color:#e63946">${formatIndianCurrency(ev.pv)}, ${(ev.inflation * 100).toFixed(0)}%</span>`;
                         rowPVs.push(pvText);
-                        rowDetails.push(`<span style="color:#e63946">${ev.name}</span>`);
+                        rowDetails.push(`<span style="color:#e63946">${escapeHtml(ev.name)}</span>`);
                         rowOutflow += inflatedAmt;
                         totalWithdrawals += inflatedAmt;
                     }
@@ -1484,7 +2086,7 @@ window.generateFreedomReport = function generateFreedomReport() {
             let repMonthsLeft = totalRetMonths - ((a - age) * 12 + 6);
             let rowAlloc = calcGlideAllocation(repMonthsLeft, initEq, startM, endM);
             let mixBadge = '';
-            if (a >= retAge) {
+            if (a >= effectiveRetAge) {
                 mixBadge = `<span class="badge-asset-mix mix-debt">0% Eq / 100% Dt</span>`;
             } else if (rowAlloc.equityPct >= initEq) {
                 mixBadge = `<span class="badge-asset-mix mix-equity">${initEq}% Eq / ${100 - initEq}% Dt</span>`;
@@ -1499,7 +2101,7 @@ window.generateFreedomReport = function generateFreedomReport() {
                 let monthsLeftToRet = totalRetMonths - monthsElapsed;
                 let mRate;
 
-                if (a < retAge && monthsLeftToRet > 0) {
+                if (a < effectiveRetAge && monthsLeftToRet > 0) {
                     let alloc = calcGlideAllocation(monthsLeftToRet, initEq, startM, endM);
                     let rAnnual = (alloc.equityPct / 100) * preIRR + (alloc.debtPct / 100) * postIRR;
                     mRate = Math.pow(1 + rAnnual, 1 / 12) - 1;
@@ -1518,21 +2120,21 @@ window.generateFreedomReport = function generateFreedomReport() {
             if (isFirstYear) { 
                  totalInvestments += (monthlySIP * 12);
             } else {
-                 if (a <= retAge) totalInvestments += (monthlySIP * 12);
+                 if (a <= effectiveRetAge) totalInvestments += (monthlySIP * 12);
             }
 
             corpus = currentCorpus;
 
             if (corpus > highestCorpus) highestCorpus = corpus;
-            if (a === retAge) corpusAtRetirement = corpus;
+            if (a === effectiveRetAge) corpusAtRetirement = corpus;
             if (a === 80) corpusAt80 = corpus;
-            if (corpus <= 0 && exhaustionAge === null && !isFirstYear) {
+            if (!isRetOff && corpus <= 0 && exhaustionAge === null && !isFirstYear && a > retAge) {
                 exhaustionAge = a;
             }
 
-            tableHtml += `<tr ${a === retAge ? 'style="font-weight:700; background:rgba(0,210,255,0.08)"' : ''}>
+            tableHtml += `<tr ${a === effectiveRetAge ? 'style="font-weight:700; background:rgba(0,210,255,0.08)"' : ''}>
                 <td>${year}</td>
-                <td ${a === retAge ? 'style="color:#00d2ff; font-weight:700;"' : ''}>${a}</td>
+                <td ${a === effectiveRetAge ? 'style="color:#00d2ff; font-weight:700;"' : ''}>${a}</td>
                 <td>${mixBadge}</td>
                 <td style="font-size:11px;">${rowPVs.join('<br>')}</td>
                 <td>${rowDetails.join('<br>')}</td>
@@ -1596,7 +2198,7 @@ window.generateFreedomReport = function generateFreedomReport() {
     }
 
     let finalSim = runSimulation(targetInitialCorpus, targetInitialSIP);
-    const swpAtRetAge = retExpToday * Math.pow(1 + inflation, retAge + 1 + pensionDelay - age); 
+    const swpAtRetAge = isRetOff ? 0 : (retExpToday * Math.pow(1 + inflation, retAge + 1 + pensionDelay - age)); 
 
     let solvedText = '';
     if (mode === 'solve-lumpsum') {
@@ -1605,56 +2207,11 @@ window.generateFreedomReport = function generateFreedomReport() {
         solvedText = `<div style="grid-column: 1 / -1; background:linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%); color:#fff; padding:14px; border-radius:12px; text-align:center; font-weight:bold; margin-bottom: 16px;">Required Monthly SIP to secure goals till age ${maxAge}: <br><span style="font-size: 24px;">${fmtINR_plain(targetInitialSIP)}</span></div>`;
     }
 
-    // Milestone Goals Blueprint Table
-    let milestonesBoxHtml = '';
-    if (baseEvents.length > 0) {
-        let milestonesRows = '';
-        baseEvents.forEach(ev => {
-            const targetYear = currentYear + (ev.age - age);
-            const yearsHorizon = Math.max(1, targetYear - currentYear);
-            const metrics = calcMilestoneMetrics(ev.pv, ev.inflation, yearsHorizon, initEq, startM, endM, preIRR, postIRR);
-            let badgeClass = metrics.currentEquityPct >= initEq ? 'mix-equity' : (metrics.currentEquityPct <= 0 ? 'mix-debt' : 'mix-transition');
-            milestonesRows += `
-                <tr>
-                    <td><strong>${ev.name || 'Life Goal'}</strong></td>
-                    <td>${targetYear} (Age ${ev.age})</td>
-                    <td>${fmtINR_plain(ev.pv)}</td>
-                    <td style="color:#1d68bd; font-weight:600;">${fmtINR_plain(metrics.fv)}</td>
-                    <td><span class="badge-asset-mix ${badgeClass}">${metrics.currentEquityPct.toFixed(0)}% Eq / ${metrics.currentDebtPct.toFixed(0)}% Dt</span></td>
-                    <td style="color:#059669; font-weight:700;">${fmtINR_plain(metrics.reqSIP)} / mo</td>
-                </tr>
-            `;
-        });
-
-        milestonesBoxHtml = `
-            <div class="milestones-report-box">
-                <h4>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-                    Major Life Goals Blueprint (Individually De-risked)
-                </h4>
-                <div class="milestones-table-wrap">
-                    <table class="milestones-table">
-                        <thead>
-                            <tr>
-                                <th>Goal Milestone</th>
-                                <th>Target Date</th>
-                                <th>Cost Today (PV)</th>
-                                <th>Inflated Target (FV)</th>
-                                <th>Current Mix</th>
-                                <th>Earmarked Monthly SIP</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${milestonesRows}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        `;
-    }
+    // Populate the Expandable Goals Accordion Table above the Cash Flow Table
+    window.renderGoalsSummaryTable();
 
     document.getElementById('report-table').innerHTML = finalSim.tableHtml;
-    document.getElementById('report-summary').innerHTML = solvedText + milestonesBoxHtml + `
+    document.getElementById('report-summary').innerHTML = solvedText + `
         <div class="fp-summary-col">
             <div class="fp-sum-row"><span>Initial Corpus :</span> <strong>${fmtINR_plain(targetInitialCorpus)}</strong></div>
             <div class="fp-sum-row"><span>Initial SIP :</span> <strong>${fmtINR_plain(targetInitialSIP)}</strong></div>
@@ -1663,24 +2220,24 @@ window.generateFreedomReport = function generateFreedomReport() {
             <div class="fp-sum-row"><span>Step up % :</span> <strong>${(stepUp * 100).toFixed(0)}%</strong></div>
             <div class="fp-sum-row"><span>Equity IRR :</span> <strong>${(preIRR * 100).toFixed(1)}%</strong></div>
             <div class="fp-sum-row"><span>Debt IRR :</span> <strong>${(postIRR * 100).toFixed(1)}%</strong></div>
-            <div class="fp-sum-row"><span>Age / Ret. Age :</span> <strong>${age} / ${retAge}</strong></div>
+            <div class="fp-sum-row"><span>Age / Ret. Age :</span> <strong>${age} / ${isRetOff ? 'Retirement Off' : retAge}</strong></div>
             <div class="fp-sum-row"><span>Inflation :</span> <strong>${(inflation * 100).toFixed(1)}%</strong></div>
             <div class="fp-sum-row"><span>Pension Delay :</span> <strong>${pensionDelay} Years</strong></div>
         </div>
         <div class="fp-summary-col">
-            <div class="fp-sum-row"><span>Retirement Expense Today :</span> <strong>${fmtINR_plain(retExpToday)}</strong></div>
-            <div class="fp-sum-row"><span>Monthly Pension at Ret. :</span> <strong>${fmtINR_plain(swpAtRetAge)}</strong></div>
+            <div class="fp-sum-row"><span>Retirement Expense Today :</span> <strong>${isRetOff ? 'Disabled (Goal Mode)' : fmtINR_plain(retExpToday)}</strong></div>
+            <div class="fp-sum-row"><span>Monthly Pension at Ret. :</span> <strong>${isRetOff ? '₹ 0 (Disabled)' : fmtINR_plain(swpAtRetAge)}</strong></div>
             <div class="fp-sum-row"><span>Total Investments :</span> <strong>${fmtINR_plain(finalSim.totalInvestments)}</strong></div>
             <div class="fp-sum-row"><span>Total Withdrawals :</span> <strong>${fmtINR_plain(finalSim.totalWithdrawals)}</strong></div>
             <div class="fp-sum-row"><span>Highest Corpus Peak :</span> <strong>${fmtINR_plain(finalSim.highestCorpus)}</strong></div>
-            <div class="fp-sum-row"><span>Exhaustion Age :</span> <strong>${finalSim.exhaustionAge || '>'+maxAge}</strong></div>
-            <div class="fp-sum-row"><span>Corpus at Retirement :</span> <strong>${fmtINR_plain(finalSim.corpusAtRetirement)}</strong></div>
+            <div class="fp-sum-row"><span>Exhaustion Age :</span> <strong>${isRetOff ? 'Wealth Acc: 100+' : (finalSim.exhaustionAge || '>'+maxAge)}</strong></div>
+            <div class="fp-sum-row"><span>Corpus at Retirement / Focus :</span> <strong>${fmtINR_plain(finalSim.corpusAtRetirement)}</strong></div>
             <div class="fp-sum-row"><span>Corpus at Age 80 :</span> <strong>${fmtINR_plain(finalSim.corpusAt80)}</strong></div>
         </div>
     `;
 
     const stickyBtn = document.querySelector('.fp-btn-sticky');
-    if (stickyBtn) {
+    if (stickyBtn && !stickyBtn.id.includes('btn-submit-first-time')) {
         stickyBtn.innerHTML = 'Download Comprehensive PDF Report';
         stickyBtn.onclick = () => window.downloadFreedomPDF();
     }
@@ -1724,22 +2281,13 @@ window.sendFreedomReportEmail = async function (status) {
         fd.append('Pension Delay (Years)',      g('inp-pension-delay'));
         fd.append('Analysis Mode',              gSel('inp-solver-mode'));
 
-        const eventRows = document.querySelectorAll('.event-row');
-        if (eventRows.length > 0) {
+        const milestones = window.fpMilestones || [];
+        if (milestones.length > 0) {
             let eventsText = '';
-            eventRows.forEach((row, i) => {
-                const evYear = row.querySelector('.ev-age')?.value || '-';
-                const evName = row.querySelector('.ev-name')?.value || '-';
-                const evPV = row.querySelector('.ev-pv')?.value || '0';
-                const evInf = row.querySelector('.ev-inf')?.value || '0';
-                const evType = row.querySelector('.ev-type')?.value || '-';
-                const fvVal = row.querySelector('.ev-fv-val')?.innerText || '-';
-                const sipVal = row.querySelector('.ev-sip-val')?.innerText || '-';
-                let line = `${i+1}. ${evName} | Year: ${evYear} | PV: Rs ${parseInt(evPV).toLocaleString('en-IN')} | FV: ${fvVal} | Req SIP: ${sipVal} | Type: ${evType}`;
-                if (evType === 'loan') {
-                    const loanRate = row.querySelector('.ev-loan-rate')?.value || '-';
-                    const loanYrs = row.querySelector('.ev-loan-yrs')?.value || '-';
-                    line += ` | Loan Rate: ${loanRate}% | Duration: ${loanYrs} Yr`;
+            milestones.forEach((g, i) => {
+                let line = `${i+1}. ${g.name || 'Goal'} | Year: ${g.target_year || '-'} (Age ${g.target_age || '-'}) | PV: Rs ${parseInt(g.present_value || 0).toLocaleString('en-IN')} | Active: Rs ${parseInt(g.active_amount || 0).toLocaleString('en-IN')} | Mix: ${g.equity_pct || 70}% Eq / ${g.debt_pct || 30}% Dt | Type: ${g.goal_type || 'outflow'}`;
+                if (g.goal_type === 'loan') {
+                    line += ` | Loan Rate: ${g.loan_rate || 8.5}% | Duration: ${g.loan_tenure_yrs || 5} Yr`;
                 }
                 eventsText += line + '\n';
             });

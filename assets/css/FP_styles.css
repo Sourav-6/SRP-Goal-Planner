@@ -616,14 +616,39 @@ html, body {
     transform: scale(0.96);
 }
 
-.fp-val-display {
+.fp-val-display,
+input.fp-val-display,
+.fp-stepper-input {
     min-width: 110px;
+    width: 120px;
     text-align: center;
     font-weight: 700;
     font-size: 14.5px;
     color: var(--brand-navy);
-    padding: 0 8px;
+    padding: 3px 6px;
     font-feature-settings: "tnum";
+    font-family: inherit;
+    border: 1px solid transparent;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+input.fp-val-display:hover,
+.fp-stepper-input:hover {
+    background: #ffffff;
+    border-color: var(--border-medium);
+}
+
+input.fp-val-display:focus,
+.fp-stepper-input:focus {
+    background: #ffffff;
+    border-color: var(--brand-blue);
+    box-shadow: 0 0 0 2px rgba(29, 104, 189, 0.15);
+    color: var(--brand-blue);
+    cursor: text;
 }
 
 .fp-hidden-number {
@@ -1895,3 +1920,382 @@ input[type="range"].fp-slider::-moz-range-thumb {
         grid-template-columns: 1fr 1fr;
     }
 }
+
+/* ==========================================================================
+   RETIREMENT ON/OFF TOGGLE SWITCH & DIMMING
+   ========================================================================== */
+.fp-ret-toggle-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid #bae6fd;
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    margin-bottom: 20px;
+}
+
+.ret-toggle-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.ret-toggle-label {
+    font-weight: 700;
+    font-size: 14.5px;
+    color: var(--brand-navy);
+    cursor: pointer;
+}
+
+.ret-toggle-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.fp-switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+.fp-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.fp-slider-toggle {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #cbd5e1;
+    transition: .25s ease;
+    border-radius: 34px;
+}
+
+.fp-slider-toggle:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .25s ease;
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+
+.fp-switch input:checked + .fp-slider-toggle {
+    background-color: var(--accent-emerald);
+}
+
+.fp-switch input:checked + .fp-slider-toggle:before {
+    transform: translateX(22px);
+}
+
+.fp-control-dimmed {
+    opacity: 0.38 !important;
+    pointer-events: none !important;
+    filter: grayscale(80%);
+    transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.fp-chip-disabled {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    background: #f1f5f9;
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+    border: 1px dashed #cbd5e1;
+    margin-top: 4px;
+}
+
+/* ==========================================================================
+   GOAL CONFIGURATION MODAL WINDOW
+   ========================================================================== */
+.fp-modal-goal {
+    max-width: 560px;
+    width: 100%;
+}
+
+.fp-grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+@media (max-width: 540px) {
+    .fp-grid-2col {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+}
+
+.fp-input-hint {
+    font-size: 11.5px;
+    color: var(--text-tertiary);
+    margin-top: 3px;
+    display: block;
+}
+
+.fp-goal-allocation-box {
+    background: var(--bg-surface-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 16px;
+}
+
+.fp-badge-alloc {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--brand-blue);
+    background: var(--brand-blue-subtle);
+    border: 1px solid #bfdbfe;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+}
+
+.fp-alloc-bar-preview {
+    display: flex;
+    height: 26px;
+    border-radius: var(--radius-xs);
+    overflow: hidden;
+    margin-top: 10px;
+    margin-bottom: 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 26px;
+    text-align: center;
+}
+
+.alloc-bar-eq {
+    background: linear-gradient(90deg, #1d68bd 0%, #2563eb 100%);
+    transition: width 0.2s ease;
+    white-space: nowrap;
+}
+
+.alloc-bar-dt {
+    background: linear-gradient(90deg, #059669 0%, #10b981 100%);
+    transition: width 0.2s ease;
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+   ENHANCED GOAL CARD ITEM IN CARD 5
+   ========================================================================== */
+.fp-goal-card {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.fp-goal-card:hover {
+    border-color: var(--border-medium);
+    box-shadow: var(--shadow-card);
+}
+
+.fp-goal-card.disabled-goal {
+    opacity: 0.5;
+    background: #f8fafc;
+}
+
+.fp-goal-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.fp-goal-card-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--brand-navy);
+}
+
+.fp-goal-card-timing {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--brand-blue);
+    background: var(--brand-blue-subtle);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+}
+
+.fp-goal-card-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+    background: var(--bg-surface-subtle);
+    padding: 10px 12px;
+    border-radius: var(--radius-xs);
+}
+
+.fp-goal-metric-lbl {
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
+
+.fp-goal-metric-val {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.fp-goal-card-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+/* ==========================================================================
+   EXPANDABLE GOALS ACCORDION TABLE ABOVE CASH FLOW
+   ========================================================================== */
+.fp-goals-accordion-card {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    margin-bottom: 22px;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.fp-goals-accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    cursor: pointer;
+    border-bottom: 1px solid transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    user-select: none;
+}
+
+.fp-goals-accordion-header:hover {
+    background: #e2e8f0;
+}
+
+.fp-goals-accordion-card.open .fp-goals-accordion-header {
+    border-bottom-color: var(--border-subtle);
+}
+
+.accordion-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.accordion-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--brand-navy);
+    margin: 0;
+}
+
+.accordion-subtitle {
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+
+.accordion-toggle-btn {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xs);
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    color: var(--brand-navy);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.25s ease, background 0.15s ease;
+}
+
+.accordion-toggle-btn:hover {
+    background: #f1f5f9;
+}
+
+.fp-goals-accordion-card.open .accordion-toggle-btn {
+    transform: rotate(180deg);
+}
+
+.fp-goals-accordion-body {
+    display: none;
+    padding: 14px 16px;
+    animation: fadeInAccordion 0.2s ease-out;
+}
+
+.fp-goals-accordion-card.open .fp-goals-accordion-body {
+    display: block;
+}
+
+@keyframes fadeInAccordion {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   FIRST-TIME INITIAL SUBMIT & SAVE BUTTON STATES
+   ========================================================================== */
+.fp-btn-pulse {
+    background: linear-gradient(135deg, #1d68bd 0%, #0284c7 100%) !important;
+    animation: pulseSubmitBtn 2.2s infinite ease-in-out;
+}
+
+@keyframes pulseSubmitBtn {
+    0%, 100% {
+        box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+    }
+    50% {
+        box-shadow: 0 4px 28px rgba(2, 132, 199, 0.85);
+    }
+}
+
+.kpi-empty-prompt {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: rgba(2, 132, 199, 0.08);
+    border: 1px dashed rgba(2, 132, 199, 0.35);
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    color: var(--brand-navy);
+    line-height: 1.45;
+}
+
+.fp-btn-save-plan {
+    background: #ffffff;
+    border: 1px solid var(--border-strong);
+    color: var(--brand-navy);
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.fp-btn-save-plan:hover {
+    background: var(--bg-surface);
+    border-color: var(--brand-blue);
+    color: var(--brand-blue);
+}
+

@@ -47,6 +47,8 @@ function initSchema() {
             glide_end_months INTEGER NOT NULL DEFAULT 12,
             pension_delay_yrs INTEGER NOT NULL DEFAULT 0,
             solver_mode TEXT NOT NULL DEFAULT 'custom',
+            retirement_enabled INTEGER NOT NULL DEFAULT 1,
+            is_first_time INTEGER NOT NULL DEFAULT 1,
             is_active INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
@@ -65,6 +67,10 @@ function initSchema() {
             loan_tenure_yrs INTEGER DEFAULT 5,
             rec_step_up REAL DEFAULT 0,
             rec_tenure_yrs INTEGER DEFAULT 5,
+            active_amount REAL DEFAULT 0,
+            equity_pct REAL DEFAULT 80,
+            debt_pct REAL DEFAULT 20,
+            is_enabled INTEGER DEFAULT 1,
             sort_order INTEGER DEFAULT 0,
             created_at TEXT NOT NULL,
             FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE
@@ -85,6 +91,33 @@ function initSchema() {
         CREATE INDEX IF NOT EXISTS idx_plans_user ON plans(user_id);
         CREATE INDEX IF NOT EXISTS idx_milestones_plan ON milestone_goals(plan_id);
     `);
+
+    // Safe dynamic column migrations for existing SQLite tables
+    try {
+        const planCols = db.prepare("PRAGMA table_info(plans)").all().map(c => c.name);
+        if (!planCols.includes('retirement_enabled')) {
+            db.exec("ALTER TABLE plans ADD COLUMN retirement_enabled INTEGER NOT NULL DEFAULT 1;");
+        }
+        if (!planCols.includes('is_first_time')) {
+            db.exec("ALTER TABLE plans ADD COLUMN is_first_time INTEGER NOT NULL DEFAULT 1;");
+        }
+
+        const goalCols = db.prepare("PRAGMA table_info(milestone_goals)").all().map(c => c.name);
+        if (!goalCols.includes('active_amount')) {
+            db.exec("ALTER TABLE milestone_goals ADD COLUMN active_amount REAL DEFAULT 0;");
+        }
+        if (!goalCols.includes('equity_pct')) {
+            db.exec("ALTER TABLE milestone_goals ADD COLUMN equity_pct REAL DEFAULT 80;");
+        }
+        if (!goalCols.includes('debt_pct')) {
+            db.exec("ALTER TABLE milestone_goals ADD COLUMN debt_pct REAL DEFAULT 20;");
+        }
+        if (!goalCols.includes('is_enabled')) {
+            db.exec("ALTER TABLE milestone_goals ADD COLUMN is_enabled INTEGER DEFAULT 1;");
+        }
+    } catch (migErr) {
+        console.warn('[DB Migration Warning]:', migErr.message);
+    }
 
     seedInitialData();
 }

@@ -232,11 +232,11 @@
                             <div class="fp-control-top">
                                 <div class="fp-control-lbl">
                                     Current Age
-                                    <span class="fp-control-hint">Your age today</span>
+                                    <span class="fp-control-hint">Click number to type via keyboard</span>
                                 </div>
                                 <div class="fp-stepper-box">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-age', -1)">−</button>
-                                    <span class="fp-val-display" id="disp-age">40 Yrs</span>
+                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-age" value="40 Yrs" onclick="this.select()" oninput="handleDirectTyping('inp-age', this.value)" onblur="formatControlDisplay('inp-age')" autocomplete="off" inputmode="numeric">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-age', 1)">+</button>
                                 </div>
                                 <input type="number" id="inp-age" value="40" min="18" max="70" class="fp-hidden-number">
@@ -255,15 +255,16 @@
                         </div>
 
                         <!-- Retirement Age -->
-                        <div class="fp-control-group">
+                        <div class="fp-control-group" id="group-ret-age">
                             <div class="fp-control-top">
                                 <div class="fp-control-lbl">
                                     Retirement Age
-                                    <span class="fp-control-hint">Age to achieve freedom</span>
+                                    <span class="fp-control-hint">Target age to achieve financial freedom</span>
+                                    <span id="ret-age-disabled-badge" style="display:none;" class="fp-chip-disabled">Retirement Disabled (Goal Mode)</span>
                                 </div>
                                 <div class="fp-stepper-box">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-ret-age', -1)">−</button>
-                                    <span class="fp-val-display" id="disp-ret-age">60 Yrs</span>
+                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-ret-age" value="60 Yrs" onclick="this.select()" oninput="handleDirectTyping('inp-ret-age', this.value)" onblur="formatControlDisplay('inp-ret-age')" autocomplete="off" inputmode="numeric">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-ret-age', 1)">+</button>
                                 </div>
                                 <input type="number" id="inp-ret-age" value="60" min="30" max="80" class="fp-hidden-number">
@@ -301,7 +302,7 @@
                                 </div>
                                 <div class="fp-stepper-box">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-initial-corpus', -100000)">−</button>
-                                    <span class="fp-val-display" id="disp-initial-corpus">₹ 10.00 Lakh</span>
+                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-initial-corpus" value="₹ 10.00 Lakh" onclick="this.select()" oninput="handleDirectTyping('inp-initial-corpus', this.value)" onblur="formatControlDisplay('inp-initial-corpus')" autocomplete="off" inputmode="numeric">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-initial-corpus', 100000)">+</button>
                                 </div>
                                 <input type="number" id="inp-initial-corpus" value="1000000" min="0" max="50000000" step="100000" class="fp-hidden-number">
@@ -328,7 +329,7 @@
                                 </div>
                                 <div class="fp-stepper-box">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-initial-sip', -5000)">−</button>
-                                    <span class="fp-val-display" id="disp-initial-sip">₹ 50,000 / mo</span>
+                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-initial-sip" value="₹ 50,000 / mo" onclick="this.select()" oninput="handleDirectTyping('inp-initial-sip', this.value)" onblur="formatControlDisplay('inp-initial-sip')" autocomplete="off" inputmode="numeric">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-initial-sip', 5000)">+</button>
                                 </div>
                                 <input type="number" id="inp-initial-sip" value="50000" min="0" max="500000" step="5000" class="fp-hidden-number">
@@ -355,7 +356,7 @@
                                 </div>
                                 <div class="fp-stepper-box">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-stepup', -0.5)">−</button>
-                                    <span class="fp-val-display" id="disp-stepup">5.0% / yr</span>
+                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-stepup" value="5.0% / yr" onclick="this.select()" oninput="handleDirectTyping('inp-stepup', this.value)" onblur="formatControlDisplay('inp-stepup')" autocomplete="off" inputmode="decimal">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-stepup', 0.5)">+</button>
                                 </div>
                                 <input type="number" id="inp-stepup" value="5" min="0" max="25" step="0.5" class="fp-hidden-number">
@@ -393,7 +394,7 @@
                                 </div>
                                 <div class="fp-stepper-box">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-pre-irr', -0.5)">−</button>
-                                    <span class="fp-val-display" id="disp-pre-irr">13.5% p.a.</span>
+                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-pre-irr" value="13.5% p.a." onclick="this.select()" oninput="handleDirectTyping('inp-pre-irr', this.value)" onblur="formatControlDisplay('inp-pre-irr')" autocomplete="off" inputmode="decimal">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-pre-irr', 0.5)">+</button>
                                 </div>
                                 <input type="number" id="inp-pre-irr" value="13.5" min="6" max="20" step="0.5" class="fp-hidden-number">
@@ -417,7 +418,7 @@
                                 </div>
                                 <div class="fp-stepper-box">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-post-irr', -0.5)">−</button>
-                                    <span class="fp-val-display" id="disp-post-irr">8.0% p.a.</span>
+                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-post-irr" value="8.0% p.a." onclick="this.select()" oninput="handleDirectTyping('inp-post-irr', this.value)" onblur="formatControlDisplay('inp-post-irr')" autocomplete="off" inputmode="decimal">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-post-irr', 0.5)">+</button>
                                 </div>
                                 <input type="number" id="inp-post-irr" value="8" min="4" max="15" step="0.5" class="fp-hidden-number">
@@ -441,7 +442,7 @@
                                 </div>
                                 <div class="fp-stepper-box">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-inflation', -0.5)">−</button>
-                                    <span class="fp-val-display" id="disp-inflation">7.0% p.a.</span>
+                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-inflation" value="7.0% p.a." onclick="this.select()" oninput="handleDirectTyping('inp-inflation', this.value)" onblur="formatControlDisplay('inp-inflation')" autocomplete="off" inputmode="decimal">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-inflation', 0.5)">+</button>
                                 </div>
                                 <input type="number" id="inp-inflation" value="7" min="3" max="12" step="0.5" class="fp-hidden-number">
@@ -471,7 +472,7 @@
                                 </div>
                                 <div class="fp-stepper-box">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-init-equity', -1)">−</button>
-                                    <span class="fp-val-display" id="disp-init-equity">80% Eq (20% Dt)</span>
+                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-init-equity" value="80% Eq (20% Dt)" onclick="this.select()" oninput="handleDirectTyping('inp-init-equity', this.value)" onblur="formatControlDisplay('inp-init-equity')" autocomplete="off" inputmode="numeric">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-init-equity', 1)">+</button>
                                 </div>
                                 <input type="number" id="inp-init-equity" value="80" min="0" max="100" step="1" class="fp-hidden-number">
@@ -495,7 +496,7 @@
                                 </div>
                                 <div class="fp-stepper-box">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-glide-start', -6)">−</button>
-                                    <span class="fp-val-display" id="disp-glide-start">108 Mos (9.0 Yrs)</span>
+                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-glide-start" value="108 Mos (9.0 Yrs)" onclick="this.select()" oninput="handleDirectTyping('inp-glide-start', this.value)" onblur="formatControlDisplay('inp-glide-start')" autocomplete="off" inputmode="numeric">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-glide-start', 6)">+</button>
                                 </div>
                                 <input type="number" id="inp-glide-start" value="108" min="24" max="180" step="6" class="fp-hidden-number">
@@ -519,7 +520,7 @@
                                 </div>
                                 <div class="fp-stepper-box">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-glide-end', -6)">−</button>
-                                    <span class="fp-val-display" id="disp-glide-end">12 Mos (1.0 Yr)</span>
+                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-glide-end" value="12 Mos (1.0 Yr)" onclick="this.select()" oninput="handleDirectTyping('inp-glide-end', this.value)" onblur="formatControlDisplay('inp-glide-end')" autocomplete="off" inputmode="numeric">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-glide-end', 6)">+</button>
                                 </div>
                                 <input type="number" id="inp-glide-end" value="12" min="0" max="60" step="6" class="fp-hidden-number">
@@ -546,82 +547,96 @@
                             </h3>
                         </div>
 
-                        <!-- Current Expense -->
-                        <div class="fp-control-group">
-                            <div class="fp-control-top">
-                                <div class="fp-control-lbl">
-                                    Monthly Living Expenses Today
-                                    <span class="fp-control-hint">Basis for retirement lifestyle</span>
-                                </div>
-                                <div class="fp-stepper-box">
-                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-expense', -5000)">−</button>
-                                    <span class="fp-val-display" id="disp-expense">₹ 40,000 / mo</span>
-                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-expense', 5000)">+</button>
-                                </div>
-                                <input type="number" id="inp-expense" value="40000" min="10000" max="500000" step="5000" class="fp-hidden-number">
+                        <!-- RETIREMENT ON/OFF TOGGLE BANNER -->
+                        <div class="fp-ret-toggle-banner">
+                            <div class="ret-toggle-text">
+                                <label for="toggle-retirement" class="ret-toggle-label">Retirement & Pension Planning</label>
+                                <span class="ret-toggle-hint">Calculate post-retirement SWP pension drawdown. Turn OFF for goal-only accumulation.</span>
                             </div>
-                            <div class="fp-slider-wrap">
-                                <input type="range" id="slide-expense" value="40000" min="10000" max="500000" step="5000" class="fp-slider">
-                            </div>
-                            <div class="fp-chips-group">
-                                <button type="button" class="fp-chip" onclick="setControlVal('inp-expense', 25000)">₹25k</button>
-                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-expense', 40000)">₹40k</button>
-                                <button type="button" class="fp-chip" onclick="setControlVal('inp-expense', 60000)">₹60k</button>
-                                <button type="button" class="fp-chip" onclick="setControlVal('inp-expense', 100000)">₹1 Lakh</button>
-                                <button type="button" class="fp-chip" onclick="setControlVal('inp-expense', 150000)">₹1.5 Lakh</button>
-                            </div>
+                            <label class="fp-switch">
+                                <input type="checkbox" id="toggle-retirement" checked onchange="toggleRetirementPlan(this.checked)">
+                                <span class="fp-slider-toggle"></span>
+                            </label>
                         </div>
 
-                        <!-- Pension Delay -->
-                        <div class="fp-control-group">
-                            <div class="fp-control-top">
-                                <div class="fp-control-lbl">
-                                    Pension / SWP Delay
-                                    <span class="fp-control-hint">Delay withdrawals after retirement</span>
+                        <div id="ret-planning-controls">
+                            <!-- Current Expense -->
+                            <div class="fp-control-group">
+                                <div class="fp-control-top">
+                                    <div class="fp-control-lbl">
+                                        Monthly Living Expenses Today
+                                        <span class="fp-control-hint">Basis for retirement lifestyle</span>
+                                    </div>
+                                    <div class="fp-stepper-box">
+                                        <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-expense', -5000)">−</button>
+                                        <input type="text" class="fp-val-display fp-stepper-input" id="disp-expense" value="₹ 40,000 / mo" onclick="this.select()" oninput="handleDirectTyping('inp-expense', this.value)" onblur="formatControlDisplay('inp-expense')" autocomplete="off" inputmode="numeric">
+                                        <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-expense', 5000)">+</button>
+                                    </div>
+                                    <input type="number" id="inp-expense" value="40000" min="0" max="500000" step="5000" class="fp-hidden-number">
                                 </div>
-                                <div class="fp-stepper-box">
-                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-pension-delay', -1)">−</button>
-                                    <span class="fp-val-display" id="disp-pension-delay">0 Yrs</span>
-                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-pension-delay', 1)">+</button>
+                                <div class="fp-slider-wrap">
+                                    <input type="range" id="slide-expense" value="40000" min="0" max="500000" step="5000" class="fp-slider">
                                 </div>
-                                <input type="number" id="inp-pension-delay" value="0" min="0" max="15" step="1" class="fp-hidden-number">
+                                <div class="fp-chips-group">
+                                    <button type="button" class="fp-chip" onclick="setControlVal('inp-expense', 25000)">₹25k</button>
+                                    <button type="button" class="fp-chip active" onclick="setControlVal('inp-expense', 40000)">₹40k</button>
+                                    <button type="button" class="fp-chip" onclick="setControlVal('inp-expense', 60000)">₹60k</button>
+                                    <button type="button" class="fp-chip" onclick="setControlVal('inp-expense', 100000)">₹1 Lakh</button>
+                                    <button type="button" class="fp-chip" onclick="setControlVal('inp-expense', 150000)">₹1.5 Lakh</button>
+                                </div>
                             </div>
-                            <div class="fp-slider-wrap">
-                                <input type="range" id="slide-pension-delay" value="0" min="0" max="15" step="1" class="fp-slider">
-                            </div>
-                        </div>
 
-                        <!-- Solver Mode -->
-                        <div class="fp-control-group">
-                            <div class="fp-control-top">
-                                <div class="fp-control-lbl">
-                                    Analysis Mode
-                                    <span class="fp-control-hint">Standard or reverse goal solve</span>
+                            <!-- Pension Delay -->
+                            <div class="fp-control-group">
+                                <div class="fp-control-top">
+                                    <div class="fp-control-lbl">
+                                        Pension / SWP Delay
+                                        <span class="fp-control-hint">Delay withdrawals after retirement</span>
+                                    </div>
+                                    <div class="fp-stepper-box">
+                                        <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-pension-delay', -1)">−</button>
+                                        <input type="text" class="fp-val-display fp-stepper-input" id="disp-pension-delay" value="0 Yrs" onclick="this.select()" oninput="handleDirectTyping('inp-pension-delay', this.value)" onblur="formatControlDisplay('inp-pension-delay')" autocomplete="off" inputmode="numeric">
+                                        <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-pension-delay', 1)">+</button>
+                                    </div>
+                                    <input type="number" id="inp-pension-delay" value="0" min="0" max="15" step="1" class="fp-hidden-number">
+                                </div>
+                                <div class="fp-slider-wrap">
+                                    <input type="range" id="slide-pension-delay" value="0" min="0" max="15" step="1" class="fp-slider">
                                 </div>
                             </div>
-                            <select id="inp-solver-mode" onchange="toggleExhaustionAge()" class="fp-select">
-                                <option value="normal">Standard Projection</option>
-                                <option value="solve-lumpsum">Calculate Lumpsum Required</option>
-                                <option value="solve-sip">Calculate SIP Required</option>
-                            </select>
-                        </div>
 
-                        <!-- Target Exhaustion Age -->
-                        <div class="fp-control-group" id="group-exhaustion-age" style="display: none;">
-                            <div class="fp-control-top">
-                                <div class="fp-control-lbl">
-                                    Target Exhaustion Age
-                                    <span class="fp-control-hint">Corpus lasts till this age</span>
+                            <!-- Solver Mode -->
+                            <div class="fp-control-group">
+                                <div class="fp-control-top">
+                                    <div class="fp-control-lbl">
+                                        Analysis Mode
+                                        <span class="fp-control-hint">Standard or reverse goal solve</span>
+                                    </div>
                                 </div>
-                                <div class="fp-stepper-box">
-                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-exhaustion-expected', -1)">−</button>
-                                    <span class="fp-val-display" id="disp-exhaustion-expected">100 Yrs</span>
-                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-exhaustion-expected', 1)">+</button>
-                                </div>
-                                <input type="number" id="inp-exhaustion-expected" value="100" min="70" max="120" step="1" class="fp-hidden-number">
+                                <select id="inp-solver-mode" onchange="toggleExhaustionAge()" class="fp-select">
+                                    <option value="normal">Standard Projection</option>
+                                    <option value="solve-lumpsum">Calculate Lumpsum Required</option>
+                                    <option value="solve-sip">Calculate SIP Required</option>
+                                </select>
                             </div>
-                            <div class="fp-slider-wrap">
-                                <input type="range" id="slide-exhaustion-expected" value="100" min="70" max="120" step="1" class="fp-slider">
+
+                            <!-- Target Exhaustion Age -->
+                            <div class="fp-control-group" id="group-exhaustion-age" style="display: none;">
+                                <div class="fp-control-top">
+                                    <div class="fp-control-lbl">
+                                        Target Exhaustion Age
+                                        <span class="fp-control-hint">Corpus lasts till this age</span>
+                                    </div>
+                                    <div class="fp-stepper-box">
+                                        <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-exhaustion-expected', -1)">−</button>
+                                        <input type="text" class="fp-val-display fp-stepper-input" id="disp-exhaustion-expected" value="100 Yrs" onclick="this.select()" oninput="handleDirectTyping('inp-exhaustion-expected', this.value)" onblur="formatControlDisplay('inp-exhaustion-expected')" autocomplete="off" inputmode="numeric">
+                                        <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-exhaustion-expected', 1)">+</button>
+                                    </div>
+                                    <input type="number" id="inp-exhaustion-expected" value="100" min="70" max="120" step="1" class="fp-hidden-number">
+                                </div>
+                                <div class="fp-slider-wrap">
+                                    <input type="range" id="slide-exhaustion-expected" value="100" min="70" max="120" step="1" class="fp-slider">
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -635,27 +650,40 @@
                                 </span>
                                 Major Life Goals & Milestones
                             </h3>
-                            <button type="button" class="fp-btn-add-goal" onclick="addEventRow()">
+                            <button type="button" class="fp-btn-add-goal" onclick="openAddGoalModal()">
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                                 Add Life Goal
                             </button>
                         </div>
                         <p style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 12px;">
-                            Add major events like Child Education, Buying a Home, Marriage, or Legacy Wealth.
+                            Configure major milestones like Child Education, Buying a Home, or Marriage. Each goal opens in its dedicated window.
                         </p>
                         <div class="fp-events-container" id="events-container">
-                            <!-- Event rows injected here -->
+                            <!-- Goal cards injected dynamically here -->
                         </div>
                     </section>
 
                 </div>
 
                 <!-- STICKY BOTTOM ACTION BAR -->
-                <div class="fp-bottom-bar">
-                    <button class="fp-btn-primary fp-btn-sticky" onclick="generateFreedomReport()">
-                        View Detailed Cash Flow Projection
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                <div class="fp-bottom-bar" id="fp-bottom-bar">
+                    <!-- FIRST-TIME PROMPT SUBMIT BUTTON -->
+                    <button type="button" id="btn-submit-first-time" class="fp-btn-primary fp-btn-sticky fp-btn-pulse" onclick="handleFirstTimePlanSubmit()">
+                        Submit Plan & Generate Blueprint
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                     </button>
+
+                    <!-- NORMAL ACTIONS (POST-SUBMIT / SAVED PLAN) -->
+                    <div id="btn-group-normal-actions" style="display: none; width: 100%; gap: 12px; align-items: center;">
+                        <button type="button" id="btn-save-plan" class="fp-btn-save-plan" onclick="manualSaveCurrentPlan()">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            Save Plan
+                        </button>
+                        <button type="button" id="btn-view-report" class="fp-btn-primary fp-btn-sticky" style="flex: 1;" onclick="generateFreedomReport()">
+                            View Detailed Cash Flow Projection
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- DETAILED REPORT VIEW -->
@@ -680,6 +708,43 @@
 
                         <div class="fp-report-summary-grid" id="report-summary">
                             <!-- Populated via JS -->
+                        </div>
+
+                        <!-- EXPANDABLE GOALS ACCORDION SUMMARY CARD ABOVE TABLE -->
+                        <div class="fp-goals-accordion-card open" id="goals-accordion-card">
+                            <div class="fp-goals-accordion-header" onclick="toggleGoalsAccordion()">
+                                <div class="accordion-title-wrap">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                                    <div>
+                                        <h4 class="accordion-title">Life Goals & Milestone Targets Breakdown</h4>
+                                        <span class="accordion-subtitle" id="goals-accordion-subtitle">Click to expand or collapse milestone allocations</span>
+                                    </div>
+                                </div>
+                                <button type="button" class="accordion-toggle-btn" id="goals-accordion-arrow">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                </button>
+                            </div>
+                            <div class="fp-goals-accordion-body" id="goals-accordion-body">
+                                <div class="fp-table-wrapper">
+                                    <table class="fp-data-table fp-goals-table" id="goals-summary-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Goal / Milestone</th>
+                                                <th>Target Age (Year)</th>
+                                                <th>Target Amount (Today PV)</th>
+                                                <th>Active Earmarked (₹)</th>
+                                                <th>Inflated Target (Future FV)</th>
+                                                <th>Asset Mix (Equity : Debt)</th>
+                                                <th>Required Monthly SIP</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="goals-summary-tbody">
+                                            <!-- Injected via JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="fp-table-wrapper">
@@ -855,6 +920,104 @@
         </div>
     </div>
 
+    <!-- 4. GOAL DETAILS CONFIGURATION MODAL (DEDICATED POPUP WINDOW) -->
+    <div id="modal-goal-detail" class="fp-modal-backdrop" style="display: none;">
+        <div class="fp-modal-card fp-modal-goal">
+            <div class="fp-modal-header">
+                <div>
+                    <div class="fp-lead-badge" style="background: rgba(0, 210, 255, 0.1); color: #0284c7; border-color: rgba(2, 132, 199, 0.3); margin-bottom: 4px;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                        Goal Configuration Window
+                    </div>
+                    <h3 class="fp-modal-title" id="goal-modal-title">Configure Life Milestone</h3>
+                    <p class="fp-modal-subtitle">Define target amounts, active earmarked funds, timeline, and asset partition split.</p>
+                </div>
+                <button type="button" class="fp-modal-close" onclick="closeGoalModal()">&times;</button>
+            </div>
+
+            <form id="form-goal-modal" onsubmit="handleGoalModalSubmit(event)" style="padding: 20px;">
+                <input type="hidden" id="goal-modal-id" value="">
+
+                <div class="fp-input-group">
+                    <label for="goal-modal-name">Goal Description / Milestone Name</label>
+                    <input type="text" id="goal-modal-name" placeholder="E.g. Child Higher Education (USA), Buying a Home, Luxury Car" required />
+                </div>
+
+                <div class="fp-grid-2col">
+                    <div class="fp-input-group">
+                        <label for="goal-modal-pv">Target Cost Today (PV ₹)</label>
+                        <input type="number" id="goal-modal-pv" min="0" step="50000" placeholder="E.g. 5000000" required onclick="this.select()" oninput="updateGoalModalHints()" />
+                        <span class="fp-input-hint" id="goal-modal-pv-hint">₹ 0</span>
+                    </div>
+                    <div class="fp-input-group">
+                        <label for="goal-modal-active">Active Amount on Goal (₹)</label>
+                        <input type="number" id="goal-modal-active" min="0" step="50000" placeholder="Funds already earmarked" value="0" onclick="this.select()" oninput="updateGoalModalHints()" />
+                        <span class="fp-input-hint" id="goal-modal-active-hint">₹ 0 (Net: ₹ 0)</span>
+                    </div>
+                </div>
+
+                <div class="fp-grid-2col">
+                    <div class="fp-input-group">
+                        <label for="goal-modal-age">Target Milestone Age</label>
+                        <input type="number" id="goal-modal-age" min="18" max="100" placeholder="E.g. 50" required onclick="this.select()" />
+                    </div>
+                    <div class="fp-input-group">
+                        <label for="goal-modal-inf">Goal Inflation Rate (%)</label>
+                        <input type="number" id="goal-modal-inf" min="0" max="25" step="0.5" value="7.0" required onclick="this.select()" />
+                    </div>
+                </div>
+
+                <div class="fp-input-group">
+                    <label for="goal-modal-type">Goal Type / Cash Flow Pattern</label>
+                    <select id="goal-modal-type" class="fp-select" onchange="toggleGoalModalTypeFields(this.value)">
+                        <option value="outflow">Lumpsum Capital Outflow</option>
+                        <option value="recurring-outflow">Recurring Annual Outflow (E.g. 4-Yr College)</option>
+                        <option value="loan">Loan Assisted Outflow (Downpayment + EMI)</option>
+                        <option value="inflow">Inflow / Asset Sale / Liquidation</option>
+                    </select>
+                </div>
+
+                <!-- Recurring / Loan extra fields -->
+                <div id="goal-modal-extra-fields" style="display: none; margin-bottom: 12px;">
+                    <div class="fp-grid-2col">
+                        <div class="fp-input-group" id="group-modal-duration">
+                            <label for="goal-modal-duration">Duration (Years)</label>
+                            <input type="number" id="goal-modal-duration" min="1" max="30" value="5" />
+                        </div>
+                        <div class="fp-input-group" id="group-modal-stepup">
+                            <label for="goal-modal-rec-stepup">Annual Outflow Step-Up (%)</label>
+                            <input type="number" id="goal-modal-rec-stepup" min="0" max="25" step="0.5" value="5" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Asset Allocation Split (Equity % vs Debt %) -->
+                <div class="fp-goal-allocation-box">
+                    <div class="fp-lbl-flex">
+                        <label style="font-size: 13px; font-weight: 600;">Asset Allocation Split</label>
+                        <span id="goal-modal-alloc-disp" class="fp-badge-alloc">80% Equity | 20% Debt</span>
+                    </div>
+                    <input type="range" id="goal-modal-equity-range" min="0" max="100" step="5" value="80" oninput="updateGoalModalAllocDisplay(this.value)" class="fp-slider" style="margin-top: 8px;" />
+                    <div class="fp-alloc-bar-preview">
+                        <div id="goal-alloc-fill-eq" class="alloc-bar-eq" style="width: 80%;">80% Equity</div>
+                        <div id="goal-alloc-fill-dt" class="alloc-bar-dt" style="width: 20%;">20% Debt</div>
+                    </div>
+                    <span class="fp-input-hint">Earmark higher equity for long horizons (>5 yrs) and higher debt for near-term goals.</span>
+                </div>
+
+                <div style="display: flex; gap: 10px; justify-content: space-between; align-items: center; margin-top: 16px;">
+                    <button type="button" id="btn-delete-goal-modal" class="ev-del-btn" style="color: #dc2626; font-size: 13px; padding: 6px 12px; border: 1px solid #fca5a5; border-radius: 6px; display: none;" onclick="handleDeleteGoalFromModal()">
+                        Delete Goal
+                    </button>
+                    <div style="display: flex; gap: 10px; margin-left: auto;">
+                        <button type="button" class="fp-btn-secondary" onclick="closeGoalModal()">Cancel</button>
+                        <button type="submit" class="fp-btn-primary">Save Goal</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- CLEAN MOBILE FOOTER -->
     <footer class="pwa-footer">
         <div class="pwa-footer-links">
@@ -878,7 +1041,7 @@
     <!-- SCRIPTS -->
     <script src="assets/js/vendor/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="assets/js/FP_main.js?v=2.4"></script>
+    <script src="assets/js/FP_main.js?v=2.5"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
