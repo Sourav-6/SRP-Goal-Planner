@@ -253,33 +253,6 @@
                                 <button type="button" class="fp-chip" onclick="setControlVal('inp-age', 50)">50</button>
                             </div>
                         </div>
-
-                        <!-- Retirement Age -->
-                        <div class="fp-control-group" id="group-ret-age">
-                            <div class="fp-control-top">
-                                <div class="fp-control-lbl">
-                                    Retirement Age
-                                    <span class="fp-control-hint">Target age to achieve financial freedom</span>
-                                    <span id="ret-age-disabled-badge" style="display:none;" class="fp-chip-disabled">Retirement Disabled (Goal Mode)</span>
-                                </div>
-                                <div class="fp-stepper-box">
-                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-ret-age', -1)">−</button>
-                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-ret-age" value="60 Yrs" onclick="this.select()" oninput="handleDirectTyping('inp-ret-age', this.value)" onblur="formatControlDisplay('inp-ret-age')" autocomplete="off" inputmode="numeric">
-                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-ret-age', 1)">+</button>
-                                </div>
-                                <input type="number" id="inp-ret-age" value="60" min="30" max="80" class="fp-hidden-number">
-                            </div>
-                            <div class="fp-slider-wrap">
-                                <input type="range" id="slide-ret-age" value="60" min="30" max="80" class="fp-slider">
-                            </div>
-                            <div class="fp-chips-group">
-                                <button type="button" class="fp-chip" onclick="setControlVal('inp-ret-age', 50)">50</button>
-                                <button type="button" class="fp-chip" onclick="setControlVal('inp-ret-age', 55)">55</button>
-                                <button type="button" class="fp-chip" onclick="setControlVal('inp-ret-age', 58)">58</button>
-                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-ret-age', 60)">60</button>
-                                <button type="button" class="fp-chip" onclick="setControlVal('inp-ret-age', 65)">65</button>
-                            </div>
-                        </div>
                     </section>
 
                     <!-- CARD 2: INVESTMENTS -->
@@ -560,6 +533,33 @@
                         </div>
 
                         <div id="ret-planning-controls">
+                            <!-- Retirement Age -->
+                            <div class="fp-control-group" id="group-ret-age">
+                                <div class="fp-control-top">
+                                    <div class="fp-control-lbl">
+                                        Retirement Age
+                                        <span class="fp-control-hint">Target age to achieve financial freedom</span>
+                                        <span id="ret-age-disabled-badge" style="display:none;" class="fp-chip-disabled">Retirement Disabled (Goal Mode)</span>
+                                    </div>
+                                    <div class="fp-stepper-box">
+                                        <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-ret-age', -1)">−</button>
+                                        <input type="text" class="fp-val-display fp-stepper-input" id="disp-ret-age" value="60 Yrs" onclick="this.select()" oninput="handleDirectTyping('inp-ret-age', this.value)" onblur="formatControlDisplay('inp-ret-age')" autocomplete="off" inputmode="numeric">
+                                        <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-ret-age', 1)">+</button>
+                                    </div>
+                                    <input type="number" id="inp-ret-age" value="60" min="30" max="80" class="fp-hidden-number">
+                                </div>
+                                <div class="fp-slider-wrap">
+                                    <input type="range" id="slide-ret-age" value="60" min="30" max="80" class="fp-slider">
+                                </div>
+                                <div class="fp-chips-group">
+                                    <button type="button" class="fp-chip" onclick="setControlVal('inp-ret-age', 50)">50</button>
+                                    <button type="button" class="fp-chip" onclick="setControlVal('inp-ret-age', 55)">55</button>
+                                    <button type="button" class="fp-chip" onclick="setControlVal('inp-ret-age', 58)">58</button>
+                                    <button type="button" class="fp-chip active" onclick="setControlVal('inp-ret-age', 60)">60</button>
+                                    <button type="button" class="fp-chip" onclick="setControlVal('inp-ret-age', 65)">65</button>
+                                </div>
+                            </div>
+
                             <!-- Current Expense -->
                             <div class="fp-control-group">
                                 <div class="fp-control-top">

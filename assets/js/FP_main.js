@@ -856,7 +856,7 @@ window.handleFirstTimePlanSubmit = async function handleFirstTimePlanSubmit() {
     }
 
     if (window.fpRetirementEnabled && retAge <= age) {
-        alert('Retirement Age should be greater than Current Age. Please adjust in Card 1.');
+        alert('Retirement Age should be greater than Current Age. Please adjust in Card 4 (Retirement Expenses & Targets).');
         const retInp = document.getElementById('disp-ret-age');
         if (retInp) {
             retInp.scrollIntoView({ behavior: 'smooth', block: 'center' });
