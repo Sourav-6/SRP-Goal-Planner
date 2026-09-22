@@ -306,17 +306,6 @@ window.applyRetirementToggleUI = function applyRetirementToggleUI(enabled, trigg
     }
 };
 
-window.setSIPDurationToRetirementPlusDelay = function setSIPDurationToRetirementPlusDelay() {
-    const age = parseInt(document.getElementById('inp-age')?.value) || 0;
-    const retAge = parseInt(document.getElementById('inp-ret-age')?.value) || 60;
-    const delay = parseInt(document.getElementById('inp-pension-delay')?.value) || 0;
-    const currentAge = age > 0 ? age : 30;
-    const targetYears = Math.max(1, (retAge + delay) - currentAge);
-    window.setControlVal('inp-sip-duration', targetYears);
-    const autoBtn = document.getElementById('btn-sip-duration-auto');
-    if (autoBtn) autoBtn.classList.add('active');
-};
-
 window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     if (window.fpAuth && window.fpAuth.isFirstTime) {
         window.renderUncalculatedHeroState();
@@ -553,19 +542,6 @@ function syncControlState(id, val) {
                 chip.classList.remove('active');
             }
         });
-
-        if (id === 'inp-sip-duration') {
-            const age = parseInt(document.getElementById('inp-age')?.value) || 0;
-            const retAge = parseInt(document.getElementById('inp-ret-age')?.value) || 60;
-            const delay = parseInt(document.getElementById('inp-pension-delay')?.value) || 0;
-            const currentAge = age > 0 ? age : 30;
-            const targetCalc = Math.max(1, (retAge + delay) - currentAge);
-            const autoBtn = document.getElementById('btn-sip-duration-auto');
-            if (autoBtn) {
-                if (Math.round(val) === targetCalc) autoBtn.classList.add('active');
-                else autoBtn.classList.remove('active');
-            }
-        }
     }
 
     // 4. Update Live KPI Snapshot, Glide Banner & Milestone Goals
@@ -1024,7 +1000,7 @@ window.renderMilestoneGoalCards = function renderMilestoneGoalCards() {
     if (!window.fpMilestones || window.fpMilestones.length === 0) {
         container.innerHTML = `
             <div class="fp-empty-goals-prompt">
-                <div class="empty-icon">🎯</div>
+                <div class="empty-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
                 <div class="empty-title">No Life Goals Configured</div>
                 <div class="empty-desc">Click "Add Life Goal" above to configure your milestone target amount, active earmarked savings, timeline, and asset partition.</div>
             </div>
@@ -1072,7 +1048,7 @@ window.renderMilestoneGoalCards = function renderMilestoneGoalCards() {
             <div class="fp-goal-card" id="goal-card-${g.id}">
                 <div class="fp-goal-card-top">
                     <div class="fp-goal-card-title-wrap">
-                        <span class="fp-goal-icon">🎯</span>
+                        <span class="fp-goal-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
                         <div>
                             <div class="fp-goal-title">${escapeHtml(g.name || 'Life Milestone')}</div>
                             <span class="fp-goal-badge">${typeBadge} • Target Age ${targetAge} (${targetYear})</span>
@@ -1424,7 +1400,7 @@ window.renderGoalsSummaryTable = function renderGoalsSummaryTable() {
 
     if (displayedGoals.length === 0) {
         html = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#e11d48; font-weight:600;">
-            ⚠️ In Standard Projection, no goals can be met due to immediate corpus/cashflow deficit. Switch to "Calculate SIP Required" or "Calculate Lumpsum" in Analysis Mode.
+            Notice: In Standard Projection, no goals can be met due to immediate corpus/cashflow deficit. Switch to "Calculate SIP Required" or "Calculate Lumpsum" in Analysis Mode.
         </td></tr>`;
     } else {
         displayedGoals.forEach(item => {
@@ -1469,7 +1445,7 @@ window.renderGoalsSummaryTable = function renderGoalsSummaryTable() {
             if (accordionBody) accordionBody.appendChild(noticeEl);
         }
         noticeEl.innerHTML = `
-            <strong>⚠️ Note: Standard Projection displays only Met and Partially Met goals (${displayedGoals.length}).</strong><br>
+            <strong>Note: Standard Projection displays only Met and Partially Met goals (${displayedGoals.length}).</strong><br>
             ${unmetList.length} goal${unmetList.length > 1 ? 's' : ''} (<em>${unmetList.map(u => escapeHtml(u.g.name) + ' at Age ' + u.targetAge).join(', ')}</em>) cannot be funded due to corpus exhaustion. Switch to <strong>"Calculate SIP Required"</strong> or <strong>"Calculate Lumpsum"</strong> in the standalone <strong>Analysis Mode</strong> card to solve for all goals.
         `;
         noticeEl.style.display = 'block';
@@ -2465,7 +2441,7 @@ window.downloadFreedomPDF = async function () {
 
     const btns = document.querySelectorAll('[onclick*="downloadFreedomPDF"]');
     const origTexts = [];
-    btns.forEach((btn, i) => { origTexts[i] = btn.innerHTML; btn.innerHTML = '⌛ Generating PDF...'; btn.disabled = true; });
+    btns.forEach((btn, i) => { origTexts[i] = btn.innerHTML; btn.innerHTML = 'Generating PDF...'; btn.disabled = true; });
     const restoreBtns = () => btns.forEach((btn, i) => { btn.innerHTML = origTexts[i]; btn.disabled = false; });
 
     await window.sendFreedomReportEmail('Downloaded');
