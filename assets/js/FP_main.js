@@ -39,8 +39,9 @@ function formatDisplayValue(id, val) {
     switch (id) {
         case 'inp-age':
         case 'inp-ret-age':
+        case 'inp-sip-duration':
         case 'inp-exhaustion-expected':
-            return val > 0 ? Math.round(val) + " Yrs" : (window.fpAuth && window.fpAuth.isFirstTime ? "" : "0 Yrs");
+            return val > 0 ? Math.round(val) + (Math.round(val) === 1 ? " Yr" : " Yrs") : (window.fpAuth && window.fpAuth.isFirstTime ? "" : "0 Yrs");
         case 'inp-pension-delay':
             return Math.round(val) + (val === 1 ? " Yr" : " Yrs");
         case 'inp-initial-corpus':
@@ -305,6 +306,17 @@ window.applyRetirementToggleUI = function applyRetirementToggleUI(enabled, trigg
     }
 };
 
+window.setSIPDurationToRetirementPlusDelay = function setSIPDurationToRetirementPlusDelay() {
+    const age = parseInt(document.getElementById('inp-age')?.value) || 0;
+    const retAge = parseInt(document.getElementById('inp-ret-age')?.value) || 60;
+    const delay = parseInt(document.getElementById('inp-pension-delay')?.value) || 0;
+    const currentAge = age > 0 ? age : 30;
+    const targetYears = Math.max(1, (retAge + delay) - currentAge);
+    window.setControlVal('inp-sip-duration', targetYears);
+    const autoBtn = document.getElementById('btn-sip-duration-auto');
+    if (autoBtn) autoBtn.classList.add('active');
+};
+
 window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     if (window.fpAuth && window.fpAuth.isFirstTime) {
         window.renderUncalculatedHeroState();
@@ -332,30 +344,34 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     const yearsLeftEl = document.getElementById('kpi-years-left');
     if (yearsLeftEl) yearsLeftEl.innerText = yearsLeft;
 
+    // SIP Duration in Years (from Current Age)
+    const simStartAge = age > 0 ? age : 30;
+    const sipDuration = parseInt(document.getElementById('inp-sip-duration')?.value) || Math.max(1, effectiveRetAge - simStartAge);
+
     // Fast simulation loop
     let corpus = initialCorpus;
     let totalInvested = initialCorpus;
     let corpusAtRetirement = 0;
     let exhaustionAge = null;
     const mPostRate = Math.pow(1 + postIRR, 1 / 12) - 1;
-    const simStartAge = age > 0 ? age : 30;
     const totalRetMonths = Math.max(0, (effectiveRetAge - simStartAge) * 12);
 
     for (let a = simStartAge; a <= 100; a++) {
+        let yearsElapsed = a - simStartAge;
         let monthlySIP = 0;
         let monthlySWP = 0;
 
-        if (a <= effectiveRetAge) {
-            monthlySIP = initialSIP * Math.pow(1 + stepUp, a - simStartAge);
+        if (yearsElapsed < sipDuration) {
+            monthlySIP = initialSIP * Math.pow(1 + stepUp, yearsElapsed);
             totalInvested += (monthlySIP * 12);
         }
 
         if (!isRetOff && a > retAge + pensionDelay && corpus > 0) {
-            monthlySWP = retExpToday * Math.pow(1 + inflation, a - simStartAge);
+            monthlySWP = retExpToday * Math.pow(1 + inflation, yearsElapsed);
         }
 
         for (let m = 0; m < 12; m++) {
-            let monthsElapsed = (a - simStartAge) * 12 + m;
+            let monthsElapsed = yearsElapsed * 12 + m;
             let monthsLeftToRet = totalRetMonths - monthsElapsed;
             let mRate;
 
@@ -383,6 +399,20 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
             exhaustionAge = a;
         }
     }
+
+    // Fast goal status tracking for live UI
+    const simGoalStatus = {};
+    (window.fpMilestones || []).forEach(m => {
+        const tAge = m.target_age || (simStartAge + 5);
+        if (exhaustionAge !== null && exhaustionAge < tAge) {
+            simGoalStatus[m.id] = { status: 'unmet', fundedPct: 0 };
+        } else if (exhaustionAge === tAge) {
+            simGoalStatus[m.id] = { status: 'partially_met', fundedPct: 50 };
+        } else {
+            simGoalStatus[m.id] = { status: 'met', fundedPct: 100 };
+        }
+    });
+    window.fpLastSimGoalStatus = simGoalStatus;
 
     // Monthly pension needed at retirement (in future money)
     const monthlyPensionAtRet = isRetOff ? 0 : (retExpToday * Math.pow(1 + inflation, retAge - simStartAge));
@@ -523,6 +553,19 @@ function syncControlState(id, val) {
                 chip.classList.remove('active');
             }
         });
+
+        if (id === 'inp-sip-duration') {
+            const age = parseInt(document.getElementById('inp-age')?.value) || 0;
+            const retAge = parseInt(document.getElementById('inp-ret-age')?.value) || 60;
+            const delay = parseInt(document.getElementById('inp-pension-delay')?.value) || 0;
+            const currentAge = age > 0 ? age : 30;
+            const targetCalc = Math.max(1, (retAge + delay) - currentAge);
+            const autoBtn = document.getElementById('btn-sip-duration-auto');
+            if (autoBtn) {
+                if (Math.round(val) === targetCalc) autoBtn.classList.add('active');
+                else autoBtn.classList.remove('active');
+            }
+        }
     }
 
     // 4. Update Live KPI Snapshot, Glide Banner & Milestone Goals
@@ -577,6 +620,7 @@ window.resetCalculatorDefaults = function resetCalculatorDefaults() {
         window.setControlVal('inp-ret-age', 60);
         window.setControlVal('inp-initial-corpus', 1000000);
         window.setControlVal('inp-initial-sip', 50000);
+        window.setControlVal('inp-sip-duration', 20);
         window.setControlVal('inp-stepup', 5);
         window.setControlVal('inp-pre-irr', 13.5);
         window.setControlVal('inp-post-irr', 8);
@@ -711,6 +755,7 @@ function collectPlanPayloadFromUI() {
         current_expense: gNum('inp-expense', 0),
         initial_corpus: gNum('inp-initial-corpus', 0),
         initial_sip: gNum('inp-initial-sip', 0),
+        sip_duration_yrs: gInt('inp-sip-duration', Math.max(1, (gInt('inp-ret-age', 60) + gInt('inp-pension-delay', 0)) - gInt('inp-age', 40))),
         sip_step_up: gNum('inp-stepup', 0),
         pre_ret_irr: gNum('inp-pre-irr', 13.5),
         post_ret_irr: gNum('inp-post-irr', 8.0),
@@ -784,6 +829,10 @@ window.populatePlanToUI = function (plan, milestones) {
     window.setControlVal('inp-expense', plan.current_expense || 0);
     window.setControlVal('inp-initial-corpus', plan.initial_corpus || 0);
     window.setControlVal('inp-initial-sip', plan.initial_sip || 0);
+
+    const defaultSipDuration = Math.max(1, (plan.retirement_age || 60) + (plan.pension_delay_yrs || 0) - (plan.current_age || 40));
+    window.setControlVal('inp-sip-duration', plan.sip_duration_yrs !== undefined ? plan.sip_duration_yrs : defaultSipDuration);
+
     window.setControlVal('inp-stepup', plan.sip_step_up || 0);
     window.setControlVal('inp-pre-irr', plan.pre_ret_irr || 13.5);
     window.setControlVal('inp-post-irr', plan.post_ret_irr || 8.0);
@@ -795,6 +844,7 @@ window.populatePlanToUI = function (plan, milestones) {
 
     const solverModeEl = document.getElementById('inp-solver-mode');
     if (solverModeEl && plan.solver_mode) solverModeEl.value = plan.solver_mode;
+    window.toggleExhaustionAge();
 
     // Populate milestone goals in window.fpMilestones
     const currentYear = new Date().getFullYear();
@@ -875,7 +925,7 @@ window.handleFirstTimePlanSubmit = async function handleFirstTimePlanSubmit() {
         window.fpAuth.isFirstTime = false;
         
         // Format all control displays now that values are confirmed
-        ['inp-age', 'inp-ret-age', 'inp-initial-corpus', 'inp-initial-sip', 'inp-stepup', 'inp-expense'].forEach(id => {
+        ['inp-age', 'inp-ret-age', 'inp-sip-duration', 'inp-initial-corpus', 'inp-initial-sip', 'inp-stepup', 'inp-expense'].forEach(id => {
             const dispId = id.replace('inp-', 'disp-');
             const disp = document.getElementById(dispId);
             const num = document.getElementById(id);
@@ -1283,14 +1333,17 @@ window.renderGoalsSummaryTable = function renderGoalsSummaryTable() {
     const milestones = window.fpMilestones || [];
     const count = milestones.length;
 
-    if (countBadge) {
-        countBadge.innerText = `${count} Goal${count === 1 ? '' : 's'} Configured`;
-    }
-
     if (count === 0) {
+        if (countBadge) countBadge.innerText = `0 Goals Configured`;
         tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#64748b;">No milestone goals configured. Click "Add Life Goal" in Card 5 to add goals.</td></tr>`;
+        const oldNotice = document.getElementById('goals-unmet-notice-box');
+        if (oldNotice) oldNotice.remove();
         return;
     }
+
+    const mode = document.getElementById('inp-solver-mode')?.value || 'normal';
+    const isStandardMode = (mode === 'normal');
+    const simGoalStatus = window.fpLastSimGoalStatus || {};
 
     const currentAge = parseInt(document.getElementById('inp-age')?.value) || 30;
     const currentYear = new Date().getFullYear();
@@ -1298,6 +1351,9 @@ window.renderGoalsSummaryTable = function renderGoalsSummaryTable() {
     const debtRate = (parseFloat(document.getElementById('inp-post-irr')?.value) || 8.0) / 100;
 
     let html = '';
+    let metOrPartialList = [];
+    let unmetList = [];
+
     milestones.forEach(g => {
         const targetAge = g.target_age || (currentAge + 5);
         const targetYear = g.target_year || (currentYear + (targetAge - currentAge));
@@ -1322,34 +1378,104 @@ window.renderGoalsSummaryTable = function renderGoalsSummaryTable() {
         const reqSIP = (netGapFV > 0 && sipAcc > 0) ? (netGapFV / sipAcc) : 0;
         const fundedPct = fv > 0 ? Math.min(100, Math.round((activeFV / fv) * 100)) : 0;
 
-        let statusPill = '';
-        if (fundedPct >= 100) {
-            statusPill = '<span class="badge-status-pill badge-status-funded">● Fully Earmarked</span>';
-        } else if (fundedPct > 0) {
-            statusPill = `<span class="badge-status-pill badge-status-partial">● ${fundedPct}% Earmarked</span>`;
+        // Determine Simulation Projection Status:
+        let simStatus = 'met';
+        if (isStandardMode) {
+            if (simGoalStatus[g.id]) {
+                simStatus = simGoalStatus[g.id].status;
+            }
         } else {
-            statusPill = '<span class="badge-status-pill badge-status-deficit">● Needs Funding</span>';
+            simStatus = 'met'; // In solver mode, all goals are met by the solver
         }
 
-        html += `
-            <tr>
-                <td><strong>${escapeHtml(g.name || 'Milestone Goal')}</strong></td>
-                <td>${targetYear} (Age ${targetAge})</td>
-                <td>${fmtINR_plain(pv)}</td>
-                <td style="color:#059669; font-weight:600;">${fmtINR_plain(activeAmt)}</td>
-                <td style="color:var(--brand-navy); font-weight:700;">${fmtINR_plain(fv)}</td>
-                <td>
-                    <span class="badge-asset-mix ${eqPct >= 70 ? 'mix-equity' : (eqPct <= 30 ? 'mix-debt' : 'mix-transition')}">
-                        ${eqPct}% Eq / ${dtPct}% Dt
-                    </span>
-                </td>
-                <td style="color:#2563eb; font-weight:700;">${reqSIP > 0 ? fmtINR_plain(reqSIP) + ' / mo' : 'Fully Funded'}</td>
-                <td>${statusPill}</td>
-            </tr>
-        `;
+        const goalItem = {
+            g,
+            targetAge,
+            targetYear,
+            pv,
+            activeAmt,
+            fv,
+            eqPct,
+            dtPct,
+            reqSIP,
+            fundedPct,
+            simStatus
+        };
+
+        if (simStatus === 'unmet') {
+            unmetList.push(goalItem);
+        } else {
+            metOrPartialList.push(goalItem);
+        }
     });
 
+    // In Standard Projection: ONLY SHOW MET GOALS AND PARTIALLY MET GOALS
+    const displayedGoals = isStandardMode ? metOrPartialList : (metOrPartialList.concat(unmetList));
+
+    if (countBadge) {
+        if (isStandardMode) {
+            countBadge.innerText = unmetList.length > 0 
+                ? `${displayedGoals.length} Met / Partially Met (${unmetList.length} Unmet)`
+                : `${displayedGoals.length} of ${count} Goals Met`;
+        } else {
+            countBadge.innerText = `${count} Goals (All Met via Solver)`;
+        }
+    }
+
+    if (displayedGoals.length === 0) {
+        html = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#e11d48; font-weight:600;">
+            ⚠️ In Standard Projection, no goals can be met due to immediate corpus/cashflow deficit. Switch to "Calculate SIP Required" or "Calculate Lumpsum" in Analysis Mode.
+        </td></tr>`;
+    } else {
+        displayedGoals.forEach(item => {
+            let statusPill = '';
+            if (item.simStatus === 'met') {
+                statusPill = `<span class="badge-status-pill badge-status-funded">● Met (100% Funded)</span>`;
+            } else if (item.simStatus === 'partially_met') {
+                statusPill = `<span class="badge-status-pill badge-status-partial">● Partially Met</span>`;
+            } else {
+                statusPill = `<span class="badge-status-pill badge-status-deficit">● Unmet (Shortfall)</span>`;
+            }
+
+            html += `
+                <tr>
+                    <td><strong>${escapeHtml(item.g.name || 'Milestone Goal')}</strong></td>
+                    <td>${item.targetYear} (Age ${item.targetAge})</td>
+                    <td>${fmtINR_plain(item.pv)}</td>
+                    <td style="color:#059669; font-weight:600;">${fmtINR_plain(item.activeAmt)}</td>
+                    <td style="color:var(--brand-navy); font-weight:700;">${fmtINR_plain(item.fv)}</td>
+                    <td>
+                        <span class="badge-asset-mix ${item.eqPct >= 70 ? 'mix-equity' : (item.eqPct <= 30 ? 'mix-debt' : 'mix-transition')}">
+                            ${item.eqPct}% Eq / ${item.dtPct}% Dt
+                        </span>
+                    </td>
+                    <td style="color:#2563eb; font-weight:700;">${item.reqSIP > 0 ? fmtINR_plain(item.reqSIP) + ' / mo' : 'Fully Funded'}</td>
+                    <td>${statusPill}</td>
+                </tr>
+            `;
+        });
+    }
+
     tbody.innerHTML = html;
+
+    // Handle Unmet Goals Warning Callout in Standard Projection
+    let noticeEl = document.getElementById('goals-unmet-notice-box');
+    const accordionBody = document.getElementById('goals-accordion-body');
+    if (isStandardMode && unmetList.length > 0) {
+        if (!noticeEl) {
+            noticeEl = document.createElement('div');
+            noticeEl.id = 'goals-unmet-notice-box';
+            noticeEl.className = 'fp-unmet-goals-notice';
+            if (accordionBody) accordionBody.appendChild(noticeEl);
+        }
+        noticeEl.innerHTML = `
+            <strong>⚠️ Note: Standard Projection displays only Met and Partially Met goals (${displayedGoals.length}).</strong><br>
+            ${unmetList.length} goal${unmetList.length > 1 ? 's' : ''} (<em>${unmetList.map(u => escapeHtml(u.g.name) + ' at Age ' + u.targetAge).join(', ')}</em>) cannot be funded due to corpus exhaustion. Switch to <strong>"Calculate SIP Required"</strong> or <strong>"Calculate Lumpsum"</strong> in the standalone <strong>Analysis Mode</strong> card to solve for all goals.
+        `;
+        noticeEl.style.display = 'block';
+    } else if (noticeEl) {
+        noticeEl.style.display = 'none';
+    }
 };
 
 // TAB SWITCHING (SIGN IN / REGISTER)
@@ -1901,6 +2027,7 @@ window.generateFreedomReport = function generateFreedomReport() {
     const endM = parseInt(document.getElementById('inp-glide-end')?.value) || 12;
     const isRetOff = !window.fpRetirementEnabled;
     const effectiveRetAge = isRetOff ? Math.max(age + 20, 60) : retAge;
+    const sipDuration = parseInt(document.getElementById('inp-sip-duration')?.value) || Math.max(1, effectiveRetAge - age);
     const totalRetMonths = Math.max(0, (effectiveRetAge - age) * 12);
     
     const currentYear = new Date().getFullYear();
@@ -1971,8 +2098,9 @@ window.generateFreedomReport = function generateFreedomReport() {
             let monthlySWP = 0;
             let isFirstYear = (a === age);
 
-            if (a <= effectiveRetAge) {
-                monthlySIP = simInitialSIP * Math.pow(1 + stepUp, a - age);
+            let yearsElapsed = a - age;
+            if (yearsElapsed < sipDuration) {
+                monthlySIP = simInitialSIP * Math.pow(1 + stepUp, yearsElapsed);
             }
 
             // Retirement SWP is bypassed if retirement planning is toggled OFF
@@ -2118,9 +2246,9 @@ window.generateFreedomReport = function generateFreedomReport() {
             }
             
             if (isFirstYear) { 
-                 totalInvestments += (monthlySIP * 12);
+                 if (sipDuration > 0) totalInvestments += (monthlySIP * 12);
             } else {
-                 if (a <= effectiveRetAge) totalInvestments += (monthlySIP * 12);
+                 if (yearsElapsed < sipDuration) totalInvestments += (monthlySIP * 12);
             }
 
             corpus = currentCorpus;
@@ -2199,6 +2327,25 @@ window.generateFreedomReport = function generateFreedomReport() {
 
     let finalSim = runSimulation(targetInitialCorpus, targetInitialSIP);
     const swpAtRetAge = isRetOff ? 0 : (retExpToday * Math.pow(1 + inflation, retAge + 1 + pensionDelay - age)); 
+
+    // Compute goal status for Goals Summary Table based on final simulation
+    const simGoalStatus = {};
+    (window.fpMilestones || []).forEach(m => {
+        const tAge = m.target_age || (age + 5);
+        if (mode === 'normal') {
+            if (finalSim.exhaustionAge !== null && finalSim.exhaustionAge < tAge) {
+                simGoalStatus[m.id] = { status: 'unmet', fundedPct: 0 };
+            } else if (finalSim.exhaustionAge === tAge) {
+                simGoalStatus[m.id] = { status: 'partially_met', fundedPct: 50 };
+            } else {
+                simGoalStatus[m.id] = { status: 'met', fundedPct: 100 };
+            }
+        } else {
+            // In solver mode, all goals are met
+            simGoalStatus[m.id] = { status: 'met', fundedPct: 100 };
+        }
+    });
+    window.fpLastSimGoalStatus = simGoalStatus; 
 
     let solvedText = '';
     if (mode === 'solve-lumpsum') {

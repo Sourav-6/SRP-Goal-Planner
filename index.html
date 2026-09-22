@@ -209,6 +209,14 @@
                 </button>
                 <button class="fp-tab-btn" onclick="scrollToCard('card-goals', this)">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                    Retirement
+                </button>
+                <button class="fp-tab-btn" onclick="scrollToCard('card-analysis-mode', this)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                    Analysis Mode
+                </button>
+                <button class="fp-tab-btn" onclick="scrollToCard('card-events', this)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
                     Life Goals
                 </button>
             </nav>
@@ -343,6 +351,35 @@
                                 <button type="button" class="fp-chip" onclick="setControlVal('inp-stepup', 8)">8%</button>
                                 <button type="button" class="fp-chip" onclick="setControlVal('inp-stepup', 10)">10%</button>
                                 <button type="button" class="fp-chip" onclick="setControlVal('inp-stepup', 15)">15%</button>
+                            </div>
+                        </div>
+
+                        <!-- Duration of SIP -->
+                        <div class="fp-control-group" id="group-sip-duration">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Duration of SIP (Years)
+                                    <span class="fp-control-hint">Number of years to invest monthly SIP</span>
+                                </div>
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-sip-duration', -1)">−</button>
+                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-sip-duration" value="20 Yrs" onclick="this.select()" oninput="handleDirectTyping('inp-sip-duration', this.value)" onblur="formatControlDisplay('inp-sip-duration')" autocomplete="off" inputmode="numeric">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-sip-duration', 1)">+</button>
+                                </div>
+                                <input type="number" id="inp-sip-duration" value="20" min="1" max="50" step="1" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-sip-duration" value="20" min="1" max="50" step="1" class="fp-slider">
+                            </div>
+                            <div class="fp-chips-group">
+                                <button type="button" class="fp-chip fp-chip-calc-btn" id="btn-sip-duration-auto" onclick="setSIPDurationToRetirementPlusDelay()" title="Set SIP duration to Retirement Age + Pension Delay minus Current Age">
+                                    ⚡ Retirement Age + Pension Delay
+                                </button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-sip-duration', 5)">5 Yrs</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-sip-duration', 10)">10 Yrs</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-sip-duration', 15)">15 Yrs</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-sip-duration', 20)">20 Yrs</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-sip-duration', 25)">25 Yrs</button>
                             </div>
                         </div>
                     </section>
@@ -604,39 +641,58 @@
                                     <input type="range" id="slide-pension-delay" value="0" min="0" max="15" step="1" class="fp-slider">
                                 </div>
                             </div>
+                        </div>
+                    </section>
 
-                            <!-- Solver Mode -->
-                            <div class="fp-control-group">
-                                <div class="fp-control-top">
-                                    <div class="fp-control-lbl">
-                                        Analysis Mode
-                                        <span class="fp-control-hint">Standard or reverse goal solve</span>
-                                    </div>
+                    <!-- CARD: ANALYSIS & SOLVER MODE (STANDALONE) -->
+                    <section class="fp-card" id="card-analysis-mode">
+                        <div class="fp-card-header">
+                            <h3 class="fp-card-title">
+                                <span class="icon-badge">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                                </span>
+                                Analysis & Solver Mode
+                            </h3>
+                        </div>
+
+                        <!-- Solver Mode -->
+                        <div class="fp-control-group">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Analysis Mode
+                                    <span class="fp-control-hint">Standard projection or reverse solve required capital</span>
                                 </div>
-                                <select id="inp-solver-mode" onchange="toggleExhaustionAge()" class="fp-select">
-                                    <option value="normal">Standard Projection</option>
-                                    <option value="solve-lumpsum">Calculate Lumpsum Required</option>
-                                    <option value="solve-sip">Calculate SIP Required</option>
-                                </select>
                             </div>
+                            <select id="inp-solver-mode" onchange="toggleExhaustionAge()" class="fp-select">
+                                <option value="normal">Standard Projection</option>
+                                <option value="solve-lumpsum">Calculate Lumpsum Required</option>
+                                <option value="solve-sip">Calculate SIP Required</option>
+                            </select>
+                        </div>
 
-                            <!-- Target Exhaustion Age -->
-                            <div class="fp-control-group" id="group-exhaustion-age" style="display: none;">
-                                <div class="fp-control-top">
-                                    <div class="fp-control-lbl">
-                                        Target Exhaustion Age
-                                        <span class="fp-control-hint">Corpus lasts till this age</span>
-                                    </div>
-                                    <div class="fp-stepper-box">
-                                        <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-exhaustion-expected', -1)">−</button>
-                                        <input type="text" class="fp-val-display fp-stepper-input" id="disp-exhaustion-expected" value="100 Yrs" onclick="this.select()" oninput="handleDirectTyping('inp-exhaustion-expected', this.value)" onblur="formatControlDisplay('inp-exhaustion-expected')" autocomplete="off" inputmode="numeric">
-                                        <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-exhaustion-expected', 1)">+</button>
-                                    </div>
-                                    <input type="number" id="inp-exhaustion-expected" value="100" min="70" max="120" step="1" class="fp-hidden-number">
+                        <!-- Target Exhaustion Age -->
+                        <div class="fp-control-group" id="group-exhaustion-age" style="display: none;">
+                            <div class="fp-control-top">
+                                <div class="fp-control-lbl">
+                                    Target Exhaustion Age
+                                    <span class="fp-control-hint">Corpus lasts till this age</span>
                                 </div>
-                                <div class="fp-slider-wrap">
-                                    <input type="range" id="slide-exhaustion-expected" value="100" min="70" max="120" step="1" class="fp-slider">
+                                <div class="fp-stepper-box">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-exhaustion-expected', -1)">−</button>
+                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-exhaustion-expected" value="100 Yrs" onclick="this.select()" oninput="handleDirectTyping('inp-exhaustion-expected', this.value)" onblur="formatControlDisplay('inp-exhaustion-expected')" autocomplete="off" inputmode="numeric">
+                                    <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-exhaustion-expected', 1)">+</button>
                                 </div>
+                                <input type="number" id="inp-exhaustion-expected" value="100" min="70" max="120" step="1" class="fp-hidden-number">
+                            </div>
+                            <div class="fp-slider-wrap">
+                                <input type="range" id="slide-exhaustion-expected" value="100" min="70" max="120" step="1" class="fp-slider">
+                            </div>
+                            <div class="fp-chips-group">
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-exhaustion-expected', 85)">85 Yrs</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-exhaustion-expected', 90)">90 Yrs</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-exhaustion-expected', 95)">95 Yrs</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-exhaustion-expected', 100)">100 Yrs</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-exhaustion-expected', 105)">105 Yrs</button>
                             </div>
                         </div>
                     </section>
