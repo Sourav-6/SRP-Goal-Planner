@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fp-pwa-v14';
+const CACHE_NAME = 'fp-pwa-v16';
 const ASSETS_TO_CACHE = [
   './index.html',
   './assets/css/FP_styles.css',

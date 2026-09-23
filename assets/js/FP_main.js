@@ -1189,7 +1189,10 @@ window.renderGoalLumpsumPartitionTable = function renderGoalLumpsumPartitionTabl
 
         rowsHtml += `
             <tr>
-                <td><strong>${escapeHtml(g.name || 'Life Milestone')}</strong></td>
+                <td>
+                    <div style="font-weight: 700; color: var(--brand-navy);">${escapeHtml(g.name || 'Life Milestone')}</div>
+                    <div class="fp-table-mobile-sub">Age ${targetAge} (${targetYear}) • ${months} mos</div>
+                </td>
                 <td>Age ${targetAge} (${targetYear}) • ${months} mos</td>
                 <td style="font-weight: 700; color: var(--brand-navy);">${fmtINR_plain(inflatedGoalAmount)}</td>
                 <td style="background: rgba(16, 185, 129, 0.04);">
@@ -1232,6 +1235,7 @@ window.renderGoalLumpsumPartitionTable = function renderGoalLumpsumPartitionTabl
                 <td>
                     <div style="font-weight: 700; color: var(--brand-navy);">Retirement Monthly Pension Stream</div>
                     <div style="font-size: 11px; color: var(--text-tertiary);">${retRes.totalMonths} Monthly Payouts</div>
+                    <div class="fp-table-mobile-sub">Age ${retRes.startAge} &rarr; ${retRes.exhaustionAge}</div>
                 </td>
                 <td>Age ${retRes.startAge} &rarr; ${retRes.exhaustionAge} (${retRes.totalMonths} mos)</td>
                 <td style="font-weight: 700; color: var(--brand-navy);">${fmtINR_plain(retRes.expenseToday)} / mo inflated</td>
@@ -1276,13 +1280,15 @@ window.renderGoalLumpsumPartitionTable = function renderGoalLumpsumPartitionTabl
         if (totalPortfolioPV > 0) {
             tfoot.innerHTML = `
                 <tr>
-                    <td colspan="3" style="text-align: right; font-weight: 700; color: var(--brand-navy);">Consolidated Portfolio Lumpsum:</td>
+                    <td style="font-weight: 700; color: var(--brand-navy);">Consolidated Portfolio</td>
+                    <td style="color: var(--text-tertiary); font-size: 11px;">All Goals Combined</td>
+                    <td style="color: var(--brand-navy); font-weight: 700;">-</td>
                     <td style="color: #15803d; font-weight: 800; background: rgba(16, 185, 129, 0.06);">100% Debt at Specified Ages</td>
                     <td style="color: var(--brand-blue); font-size: 14px; font-weight: 800;">${fmtINR_plain(totalPortfolioPV)}</td>
                     <td><span class="badge-partition-mix mix-pure-debt">${overallEqPct.toFixed(0)}% Eq / ${overallDebtPct.toFixed(0)}% Dt</span></td>
                     <td style="color: #059669; font-size: 14px; font-weight: 800;">${fmtINR_plain(totalPortfolioDebt)}</td>
                     <td style="color: #4f46e5; font-size: 14px; font-weight: 800;">${fmtINR_plain(totalPortfolioEquity)}</td>
-                    <td style="font-weight: 700; color: #059669;">100% Capital Protected</td>
+                    <td style="font-weight: 700; color: #059669;">100% Protected</td>
                 </tr>
             `;
         } else {
@@ -1323,6 +1329,9 @@ window.setAccumulationViewMode = function setAccumulationViewMode(mode) {
     const btnMonthly = document.getElementById('btn-accum-monthly');
     if (btnAnnual) btnAnnual.classList.toggle('active', mode === 'annual');
     if (btnMonthly) btnMonthly.classList.toggle('active', mode === 'monthly');
+    const tableEl = document.getElementById('asset-accumulation-table');
+    const wrap = tableEl ? tableEl.closest('.fp-partition-table-wrap') : null;
+    if (wrap) wrap.scrollLeft = 0;
     window.renderAssetAccumulationTable();
 };
 
@@ -1586,7 +1595,10 @@ window.renderAssetAccumulationTable = function renderAssetAccumulationTable() {
 
             rowsHtml += `
                 <tr class="${trClass}">
-                    <td><strong>Year ${y}</strong> (${yearCalendar})</td>
+                    <td>
+                        <div style="font-weight: 700; color: var(--brand-navy);">Year ${y} (${yearCalendar})</div>
+                        <div class="fp-table-mobile-sub">Age ${yearAgeStart}&rarr;${yearAgeEnd} • ${remLabel}</div>
+                    </td>
                     <td>Age ${yearAgeStart} &rarr; ${yearAgeEnd}</td>
                     <td style="color: var(--text-secondary); font-size: 12px;">${remLabel}</td>
                     <td style="font-weight: 600;">${fmtINR_plain(yearOpenBal)}</td>
@@ -1609,13 +1621,16 @@ window.renderAssetAccumulationTable = function renderAssetAccumulationTable() {
         if (tfootEl) {
             tfootEl.innerHTML = `
                 <tr>
-                    <td colspan="3" style="text-align: right; font-weight: 700; color: var(--brand-navy);">Lumpsum Accumulation Summary:</td>
-                    <td style="font-weight: 800; color: var(--brand-blue);">${fmtINR_plain(totalInitialPV)} (PV Invested)</td>
-                    <td><span class="badge-partition-mix mix-pure-debt">100% Debt at Maturity</span></td>
-                    <td colspan="2" style="color: #15803d; font-weight: 700;">Capital Fully Protected</td>
-                    <td style="color: #2563eb; font-weight: 800;">+${fmtINR_plain(cumReturnsAll)} Growth</td>
+                    <td style="font-weight: 700; color: var(--brand-navy);">Lumpsum Summary</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td style="font-weight: 800; color: var(--brand-blue);">${fmtINR_plain(totalInitialPV)} (PV)</td>
+                    <td><span class="badge-partition-mix mix-pure-debt">100% Debt</span></td>
+                    <td style="color: #4f46e5; font-weight: 600;">-</td>
+                    <td style="color: #059669; font-weight: 600;">Protected</td>
+                    <td style="color: #2563eb; font-weight: 800;">+${fmtINR_plain(cumReturnsAll)}</td>
                     <td style="font-weight: 800; color: #15803d; font-size: 14px;">${fmtINR_plain(totalTargetFV)}</td>
-                    <td style="font-weight: 800; color: #15803d;">100% Fulfilled in Debt</td>
+                    <td style="font-weight: 800; color: #15803d;">100% Debt</td>
                 </tr>
             `;
         }
@@ -1694,7 +1709,10 @@ window.renderAssetAccumulationTable = function renderAssetAccumulationTable() {
 
             rowsHtml += `
                 <tr class="${trClass}">
-                    <td><strong>Month ${m}</strong></td>
+                    <td>
+                        <div style="font-weight: 700; color: var(--brand-navy);">Month ${m}</div>
+                        <div class="fp-table-mobile-sub">Age ${ageDisplay} • ${remLabel}</div>
+                    </td>
                     <td>Age ${ageDisplay}</td>
                     <td style="color: var(--text-secondary); font-size: 12px;">${remLabel}</td>
                     <td style="font-weight: 600;">${fmtINR_plain(mOpenBal)}</td>
@@ -1722,12 +1740,17 @@ window.renderAssetAccumulationTable = function renderAssetAccumulationTable() {
         if (tfootEl) {
             tfootEl.innerHTML = `
                 <tr>
-                    <td colspan="3" style="text-align: right; font-weight: 700; color: var(--brand-navy);">Lumpsum Accumulation Total:</td>
+                    <td style="font-weight: 700; color: var(--brand-navy);">Lumpsum Total</td>
+                    <td>-</td>
+                    <td>-</td>
                     <td style="font-weight: 800; color: var(--brand-blue);">${fmtINR_plain(totalInitialPV)} (PV)</td>
-                    <td colspan="4" style="color: #15803d; font-weight: 700; text-align: center;">100% Debt at Specified Goal Ages</td>
-                    <td style="color: #2563eb; font-weight: 800;">+${fmtINR_plain(cumMonthGrowth)} Growth</td>
+                    <td style="color: #15803d; font-weight: 700;">100% Debt</td>
+                    <td>-</td>
+                    <td style="color: #64748b;">0% Eq</td>
+                    <td>-</td>
+                    <td style="color: #2563eb; font-weight: 800;">+${fmtINR_plain(cumMonthGrowth)}</td>
                     <td style="font-weight: 800; color: #15803d; font-size: 14px;">${fmtINR_plain(totalTargetFV)}</td>
-                    <td style="font-weight: 800; color: #15803d;">100% Capital Protected</td>
+                    <td style="font-weight: 800; color: #15803d;">Protected</td>
                 </tr>
             `;
         }
