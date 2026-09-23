@@ -2318,4 +2318,182 @@ input[type="range"].fp-slider::-moz-range-thumb {
     color: #78350f;
 }
 
+/* ==========================================================================
+   GOAL-BASED LUMPSUM & ASSET PARTITION SECTION (GLIDE PATH ENGINE)
+   ========================================================================== */
+.fp-goal-partition-card {
+    margin-top: 24px;
+    padding: 20px;
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.fp-goal-partition-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.fp-partition-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--brand-navy);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fp-partition-subtitle {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+.fp-partition-kpi-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.fp-pkpi-card {
+    background: #ffffff;
+    border: 1px solid rgba(2, 132, 199, 0.25);
+    border-radius: 10px;
+    padding: 8px 14px;
+    display: flex;
+    flex-direction: column;
+    min-width: 140px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.fp-pkpi-card.pkpi-debt {
+    border-color: rgba(16, 185, 129, 0.35);
+    background: linear-gradient(180deg, #ffffff 0%, rgba(16, 185, 129, 0.04) 100%);
+}
+
+.fp-pkpi-card.pkpi-equity {
+    border-color: rgba(99, 102, 241, 0.35);
+    background: linear-gradient(180deg, #ffffff 0%, rgba(99, 102, 241, 0.04) 100%);
+}
+
+.fp-pkpi-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-secondary);
+}
+
+.fp-pkpi-val {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--brand-navy);
+    margin-top: 2px;
+}
+
+.pkpi-debt .fp-pkpi-val {
+    color: #059669;
+}
+
+.pkpi-equity .fp-pkpi-val {
+    color: #4f46e5;
+}
+
+.fp-partition-table-wrap {
+    background: #ffffff;
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    overflow-x: auto;
+}
+
+.fp-partition-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+}
+
+.fp-partition-table th {
+    background: #f1f5f9;
+    color: var(--text-secondary);
+    font-weight: 600;
+    padding: 10px 12px;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.fp-partition-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    white-space: nowrap;
+    color: var(--text-primary);
+}
+
+.fp-partition-table tr:hover td {
+    background-color: #f8fafc;
+}
+
+.fp-partition-table tfoot td {
+    background: #f8fafc;
+    font-weight: 700;
+    color: var(--brand-navy);
+    border-top: 2px solid var(--brand-blue);
+    padding: 12px;
+}
+
+.badge-partition-mix {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: #e2e8f0;
+    color: var(--text-secondary);
+}
+
+.badge-partition-mix.mix-pure-debt {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.badge-partition-mix.mix-pure-eq {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.badge-partition-mix.mix-glide {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.fp-btn-view-schedule {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--brand-blue);
+    background: rgba(2, 132, 199, 0.08);
+    border: 1px solid rgba(2, 132, 199, 0.25);
+    border-radius: 6px;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: 8px;
+}
+
+.fp-btn-view-schedule:hover {
+    background: var(--brand-blue);
+    color: #ffffff;
+}
+
+
 

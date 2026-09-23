@@ -300,6 +300,9 @@ window.applyRetirementToggleUI = function applyRetirementToggleUI(enabled, trigg
     if (!window.fpAuth.isFirstTime) {
         window.updateLiveFreedomSnapshot();
     }
+    if (typeof window.renderGoalLumpsumPartitionTable === 'function') {
+        window.renderGoalLumpsumPartitionTable();
+    }
 
     if (triggerSave && typeof window.triggerDebouncedAutoSave === 'function') {
         window.triggerDebouncedAutoSave();
@@ -472,6 +475,10 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
         exhaustionAge: exhaustionAge || 100,
         totalInvested: totalInvested
     };
+
+    if (typeof window.renderGoalLumpsumPartitionTable === 'function') {
+        window.renderGoalLumpsumPartitionTable();
+    }
 };
 
 // ==========================================================================
@@ -989,6 +996,330 @@ window.manualSaveCurrentPlan = async function manualSaveCurrentPlan() {
 };
 
 // ==========================================================================
+// GOAL-BASED GLIDE PATH & LUMPSUM PARTITION ENGINE (EXCEL MATHEMATICAL MODEL)
+// ==========================================================================
+
+window.calculateGoalLumpsumGlide = function calculateGoalLumpsumGlide(monthsToGoal, goalAmount, customOptions = {}) {
+    const months = Math.max(1, Math.round(monthsToGoal || 1));
+    const targetAmt = parseFloat(goalAmount) || 0;
+
+    // Read current planner parameters
+    const initEquity = parseFloat(document.getElementById('inp-init-equity')?.value);
+    const startDebtPct = customOptions.startDebtPct !== undefined 
+        ? customOptions.startDebtPct 
+        : (isNaN(initEquity) ? 20 : Math.max(0, 100 - initEquity)); // Default 20%
+    
+    const monthlyDebtInc = customOptions.monthlyDebtInc !== undefined ? customOptions.monthlyDebtInc : 10; // 10% per month
+
+    const preIrrVal = parseFloat(document.getElementById('inp-pre-irr')?.value);
+    const equityIRR = customOptions.equityIRR !== undefined 
+        ? customOptions.equityIRR 
+        : ((isNaN(preIrrVal) ? 12.0 : preIrrVal) / 100);
+
+    const postIrrVal = parseFloat(document.getElementById('inp-post-irr')?.value);
+    const debtIRR = customOptions.debtIRR !== undefined 
+        ? customOptions.debtIRR 
+        : ((isNaN(postIrrVal) ? 7.0 : postIrrVal) / 100);
+
+    const glideStartM = customOptions.glideStartMonth !== undefined ? customOptions.glideStartMonth : 10;
+
+    // Cumulative discount calculation: product of (1 + monthly discount) from 1 to months
+    let cumulativeFactor = 1.0;
+    for (let m = 1; m <= months; m++) {
+        // Debt % = MIN(100%, startDebtPct + monthlyDebtInc * MAX(0, glideStartM - m))
+        const dPct = Math.min(100, Math.max(startDebtPct, startDebtPct + monthlyDebtInc * Math.max(0, glideStartM - m)));
+        const ePct = 100 - dPct;
+        const annualReturn = (dPct / 100) * debtIRR + (ePct / 100) * equityIRR;
+        const monthlyRate = annualReturn / 12;
+        cumulativeFactor *= (1 + monthlyRate);
+    }
+
+    const pv = cumulativeFactor > 0 ? (targetAmt / cumulativeFactor) : targetAmt;
+
+    // Today's asset allocation (based on monthsToGoal remaining from today)
+    const currentDebtPct = Math.min(100, Math.max(startDebtPct, startDebtPct + monthlyDebtInc * Math.max(0, glideStartM - months)));
+    const currentEquityPct = 100 - currentDebtPct;
+    const debtValue = pv * (currentDebtPct / 100);
+    const equityValue = pv * (currentEquityPct / 100);
+    const currentAnnualReturn = (currentDebtPct / 100) * debtIRR + (currentEquityPct / 100) * equityIRR;
+    const currentMonthlyRate = currentAnnualReturn / 12;
+
+    return {
+        monthsToGoal: months,
+        goalAmount: targetAmt,
+        pv,
+        debtPct: currentDebtPct,
+        equityPct: currentEquityPct,
+        debtValue,
+        equityValue,
+        annualReturn: currentAnnualReturn,
+        monthlyRate: currentMonthlyRate,
+        cumulativeFactor
+    };
+};
+
+window.calculateRetirementMonthlyStreamLumpsum = function calculateRetirementMonthlyStreamLumpsum(customOptions = {}) {
+    const isRetEnabled = window.fpRetirementEnabled !== false;
+    if (!isRetEnabled) {
+        return {
+            enabled: false,
+            totalPV: 0,
+            totalDebt: 0,
+            totalEquity: 0,
+            overallDebtPct: 0,
+            overallEquityPct: 0,
+            totalMonths: 0,
+            monthlySchedule: []
+        };
+    }
+
+    const age = parseInt(document.getElementById('inp-age')?.value) || 30;
+    const retAge = parseInt(document.getElementById('inp-ret-age')?.value) || 60;
+    const pensionDelay = parseInt(document.getElementById('inp-pension-delay')?.value) || 0;
+    const expenseToday = parseFloat(document.getElementById('inp-expense')?.value) || 40000;
+    const inflation = (parseFloat(document.getElementById('inp-inflation')?.value) || 7.0) / 100;
+    const exhaustionAge = parseInt(document.getElementById('inp-exhaustion-expected')?.value) || 85;
+
+    const startAge = retAge + pensionDelay;
+    const startMonthFromToday = Math.max(0, (startAge - age) * 12);
+    const totalRetMonths = Math.max(0, (exhaustionAge - startAge) * 12);
+
+    if (totalRetMonths <= 0 || expenseToday <= 0) {
+        return {
+            enabled: true,
+            totalPV: 0,
+            totalDebt: 0,
+            totalEquity: 0,
+            overallDebtPct: 0,
+            overallEquityPct: 0,
+            totalMonths: 0,
+            monthlySchedule: []
+        };
+    }
+
+    let totalPV = 0;
+    let totalDebt = 0;
+    let totalEquity = 0;
+    const monthlySchedule = [];
+
+    for (let t = 1; t <= totalRetMonths; t++) {
+        const m = startMonthFromToday + t;
+        const inflatedExpense = expenseToday * Math.pow(1 + inflation, m / 12);
+        const res = window.calculateGoalLumpsumGlide(m, inflatedExpense, customOptions);
+
+        totalPV += res.pv;
+        totalDebt += res.debtValue;
+        totalEquity += res.equityValue;
+
+        monthlySchedule.push({
+            payoutMonthIndex: t,
+            ageAtPayout: (age + m / 12).toFixed(1),
+            monthsToPayout: m,
+            payoutAmount: inflatedExpense,
+            pv: res.pv,
+            debtPct: res.debtPct,
+            debtValue: res.debtValue,
+            equityPct: res.equityPct,
+            equityValue: res.equityValue,
+            monthlyRate: res.monthlyRate
+        });
+    }
+
+    const overallDebtPct = totalPV > 0 ? (totalDebt / totalPV) * 100 : 0;
+    const overallEquityPct = totalPV > 0 ? (totalEquity / totalPV) * 100 : 0;
+
+    return {
+        enabled: true,
+        totalPV,
+        totalDebt,
+        totalEquity,
+        overallDebtPct,
+        overallEquityPct,
+        totalMonths: totalRetMonths,
+        monthlySchedule,
+        startAge,
+        exhaustionAge,
+        expenseToday
+    };
+};
+
+window.renderGoalLumpsumPartitionTable = function renderGoalLumpsumPartitionTable() {
+    const tbody = document.getElementById('goal-partition-tbody');
+    const tfoot = document.getElementById('goal-partition-tfoot');
+    const kpiLumpsum = document.getElementById('pkpi-total-lumpsum');
+    const kpiDebt = document.getElementById('pkpi-total-debt');
+    const kpiEquity = document.getElementById('pkpi-total-equity');
+    if (!tbody) return;
+
+    const currentAge = parseInt(document.getElementById('inp-age')?.value) || 30;
+    const currentYear = new Date().getFullYear();
+    const milestones = window.fpMilestones || [];
+
+    let totalPortfolioPV = 0;
+    let totalPortfolioDebt = 0;
+    let totalPortfolioEquity = 0;
+    let rowsHtml = '';
+
+    // 1. Process discrete milestone goals
+    milestones.forEach((g) => {
+        const targetAge = g.target_age || (currentAge + 5);
+        const targetYear = g.target_year || (currentYear + (targetAge - currentAge));
+        const months = Math.max(1, (targetAge - currentAge) * 12);
+        const pvAmount = parseFloat(g.present_value) || 0;
+        const inf = (parseFloat(g.inflation_rate) || 7.0) / 100;
+        const inflatedGoalAmount = pvAmount * Math.pow(1 + inf, months / 12);
+
+        const res = window.calculateGoalLumpsumGlide(months, inflatedGoalAmount);
+
+        totalPortfolioPV += res.pv;
+        totalPortfolioDebt += res.debtValue;
+        totalPortfolioEquity += res.equityValue;
+
+        const mixClass = res.debtPct >= 80 ? 'mix-pure-debt' : (res.equityPct >= 70 ? 'mix-pure-eq' : 'mix-glide');
+
+        rowsHtml += `
+            <tr>
+                <td><strong>${escapeHtml(g.name || 'Life Milestone')}</strong></td>
+                <td>${months} Mos (${targetAge} Yrs / ${targetYear})</td>
+                <td style="font-weight: 600;">${fmtINR_plain(inflatedGoalAmount)}</td>
+                <td style="color: var(--brand-blue); font-weight: 700;">${fmtINR_plain(res.pv)}</td>
+                <td><span class="badge-partition-mix ${mixClass}">${res.debtPct.toFixed(1)}%</span></td>
+                <td style="color: #059669; font-weight: 600;">${fmtINR_plain(res.debtValue)}</td>
+                <td><span class="badge-partition-mix ${mixClass}">${res.equityPct.toFixed(1)}%</span></td>
+                <td style="color: #4f46e5; font-weight: 600;">${fmtINR_plain(res.equityValue)}</td>
+                <td style="color: var(--text-secondary);">${(res.monthlyRate * 100).toFixed(2)}% / mo</td>
+            </tr>
+        `;
+    });
+
+    // 2. Process Retirement Recurring Stream
+    const retRes = window.calculateRetirementMonthlyStreamLumpsum();
+    window.fpLatestRetSchedule = retRes.monthlySchedule || [];
+
+    if (retRes.enabled && retRes.totalMonths > 0) {
+        totalPortfolioPV += retRes.totalPV;
+        totalPortfolioDebt += retRes.totalDebt;
+        totalPortfolioEquity += retRes.totalEquity;
+
+        rowsHtml += `
+            <tr style="background: rgba(2, 132, 199, 0.04);">
+                <td>
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                        <span><strong>Retirement Monthly Pension Stream</strong></span>
+                        <button type="button" class="fp-btn-view-schedule" onclick="openRetScheduleModal()">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                            View Monthly Schedule (${retRes.totalMonths} Mos)
+                        </button>
+                    </div>
+                </td>
+                <td>${retRes.totalMonths} Mos (Age ${retRes.startAge} &rarr; ${retRes.exhaustionAge})</td>
+                <td style="font-weight: 600;">${fmtINR_plain(retRes.expenseToday)} / mo inflated</td>
+                <td style="color: var(--brand-blue); font-weight: 700;">${fmtINR_plain(retRes.totalPV)}</td>
+                <td><span class="badge-partition-mix mix-pure-debt">${retRes.overallDebtPct.toFixed(1)}%</span></td>
+                <td style="color: #059669; font-weight: 600;">${fmtINR_plain(retRes.totalDebt)}</td>
+                <td><span class="badge-partition-mix mix-pure-eq">${retRes.overallEquityPct.toFixed(1)}%</span></td>
+                <td style="color: #4f46e5; font-weight: 600;">${fmtINR_plain(retRes.totalEquity)}</td>
+                <td style="color: var(--text-secondary);">Dynamic Glide</td>
+            </tr>
+        `;
+    }
+
+    if (rowsHtml === '') {
+        rowsHtml = `<tr><td colspan="9" style="text-align: center; padding: 24px; color: var(--text-tertiary);">No goals or retirement configured yet. Add a life goal above or enable retirement.</td></tr>`;
+    }
+
+    tbody.innerHTML = rowsHtml;
+
+    // Overall portfolio percentages
+    const overallDebtPct = totalPortfolioPV > 0 ? (totalPortfolioDebt / totalPortfolioPV) * 100 : 0;
+    const overallEqPct = totalPortfolioPV > 0 ? (totalPortfolioEquity / totalPortfolioPV) * 100 : 0;
+
+    // 3. Render Table Footer (Totals)
+    if (tfoot) {
+        if (totalPortfolioPV > 0) {
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="3" style="text-align: right; font-weight: 700; color: var(--brand-navy);">Consolidated Portfolio Lumpsum:</td>
+                    <td style="color: var(--brand-blue); font-size: 14px; font-weight: 800;">${fmtINR_plain(totalPortfolioPV)}</td>
+                    <td><span class="badge-partition-mix mix-pure-debt">${overallDebtPct.toFixed(1)}%</span></td>
+                    <td style="color: #059669; font-size: 14px; font-weight: 800;">${fmtINR_plain(totalPortfolioDebt)}</td>
+                    <td><span class="badge-partition-mix mix-pure-eq">${overallEqPct.toFixed(1)}%</span></td>
+                    <td style="color: #4f46e5; font-size: 14px; font-weight: 800;">${fmtINR_plain(totalPortfolioEquity)}</td>
+                    <td>100% De-risked</td>
+                </tr>
+            `;
+        } else {
+            tfoot.innerHTML = '';
+        }
+    }
+
+    // 4. Update Header KPI Cards
+    if (kpiLumpsum) kpiLumpsum.innerText = fmtINR_plain(totalPortfolioPV);
+    if (kpiDebt) kpiDebt.innerText = `${fmtINR_plain(totalPortfolioDebt)} (${overallDebtPct.toFixed(1)}%)`;
+    if (kpiEquity) kpiEquity.innerText = `${fmtINR_plain(totalPortfolioEquity)} (${overallEqPct.toFixed(1)}%)`;
+
+    // Store latest portfolio total on window
+    window.fpLatestGoalLumpsumTotal = {
+        totalPV: totalPortfolioPV,
+        totalDebt: totalPortfolioDebt,
+        totalEquity: totalPortfolioEquity,
+        overallDebtPct,
+        overallEqPct
+    };
+};
+
+window.openRetScheduleModal = function openRetScheduleModal() {
+    const modal = document.getElementById('modal-ret-schedule');
+    if (!modal) return;
+
+    const schedule = window.fpLatestRetSchedule || [];
+    const tbody = document.getElementById('ret-schedule-tbody');
+    const kpiPv = document.getElementById('ret-sched-kpi-pv');
+    const kpiDebt = document.getElementById('ret-sched-kpi-debt');
+    const kpiEquity = document.getElementById('ret-sched-kpi-equity');
+
+    let totalPV = 0;
+    let totalDebt = 0;
+    let totalEquity = 0;
+
+    let rowsHtml = '';
+    schedule.forEach(item => {
+        totalPV += item.pv;
+        totalDebt += item.debtValue;
+        totalEquity += item.equityValue;
+
+        const mixClass = item.debtPct >= 80 ? 'mix-pure-debt' : (item.equityPct >= 70 ? 'mix-pure-eq' : 'mix-glide');
+
+        rowsHtml += `
+            <tr>
+                <td>Month ${item.payoutMonthIndex}</td>
+                <td>Age ${item.ageAtPayout}</td>
+                <td>${item.monthsToPayout} mos</td>
+                <td style="font-weight: 600;">${fmtINR_plain(item.payoutAmount)}</td>
+                <td style="color: var(--brand-blue); font-weight: 700;">${fmtINR_plain(item.pv)}</td>
+                <td><span class="badge-partition-mix ${mixClass}">${item.debtPct.toFixed(1)}%</span></td>
+                <td style="color: #059669;">${fmtINR_plain(item.debtValue)}</td>
+                <td><span class="badge-partition-mix ${mixClass}">${item.equityPct.toFixed(1)}%</span></td>
+                <td style="color: #4f46e5;">${fmtINR_plain(item.equityValue)}</td>
+                <td style="color: var(--text-secondary);">${(item.monthlyRate * 100).toFixed(2)}%</td>
+            </tr>
+        `;
+    });
+
+    if (tbody) tbody.innerHTML = rowsHtml;
+    if (kpiPv) kpiPv.innerText = fmtINR_plain(totalPV);
+    if (kpiDebt) kpiDebt.innerText = `${fmtINR_plain(totalDebt)} (${totalPV > 0 ? ((totalDebt / totalPV) * 100).toFixed(1) : 0}%)`;
+    if (kpiEquity) kpiEquity.innerText = `${fmtINR_plain(totalEquity)} (${totalPV > 0 ? ((totalEquity / totalPV) * 100).toFixed(1) : 0}%)`;
+
+    modal.style.display = 'flex';
+};
+
+window.closeRetScheduleModal = function closeRetScheduleModal() {
+    const modal = document.getElementById('modal-ret-schedule');
+    if (modal) modal.style.display = 'none';
+};
+
+// ==========================================================================
 // LIFE GOALS & MODAL ENGINE
 // ==========================================================================
 window.fpMilestones = [];
@@ -1005,6 +1336,7 @@ window.renderMilestoneGoalCards = function renderMilestoneGoalCards() {
                 <div class="empty-desc">Click "Add Life Goal" above to configure your milestone target amount, active earmarked savings, timeline, and asset partition.</div>
             </div>
         `;
+        window.renderGoalLumpsumPartitionTable();
         return;
     }
 
@@ -1097,6 +1429,7 @@ window.renderMilestoneGoalCards = function renderMilestoneGoalCards() {
     });
 
     container.innerHTML = html;
+    window.renderGoalLumpsumPartitionTable();
 };
 
 window.openAddGoalModal = function openAddGoalModal() {
