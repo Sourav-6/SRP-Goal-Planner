@@ -749,14 +749,14 @@
                                     <thead>
                                         <tr>
                                             <th>Goal / Milestone</th>
-                                            <th>Horizon</th>
-                                            <th>Goal Target (₹)</th>
-                                            <th>PV of Goal (₹)</th>
-                                            <th>Debt %</th>
-                                            <th>Debt Value (₹)</th>
-                                            <th>Equity %</th>
-                                            <th>Equity Value (₹)</th>
-                                            <th>Monthly Return</th>
+                                            <th>Target Age (Horizon)</th>
+                                            <th>Target Amount (FV)</th>
+                                            <th style="background: rgba(16, 185, 129, 0.08); color: #065f46; font-weight: 700;">Partition at Specified Age</th>
+                                            <th>Lumpsum Needed Today (PV)</th>
+                                            <th>Today's Starting Mix</th>
+                                            <th>Today's Debt Portion</th>
+                                            <th>Today's Equity Portion</th>
+                                            <th>Month Glide Schedule</th>
                                         </tr>
                                     </thead>
                                     <tbody id="goal-partition-tbody">
@@ -1101,15 +1101,22 @@
                 <!-- Asset Allocation Split (Equity % vs Debt %) -->
                 <div class="fp-goal-allocation-box">
                     <div class="fp-lbl-flex">
-                        <label style="font-size: 13px; font-weight: 600;">Asset Allocation Split</label>
-                        <span id="goal-modal-alloc-disp" class="fp-badge-alloc">80% Equity | 20% Debt</span>
+                        <label style="font-size: 13px; font-weight: 600;">Glide Path & Maturity Asset Partition</label>
+                        <span class="fp-badge-alloc" style="background:#dcfce7; color:#15803d; border-color:#86efac; font-weight:700;">100% Debt at Target Age</span>
                     </div>
-                    <input type="range" id="goal-modal-equity-range" min="0" max="100" step="5" value="80" oninput="updateGoalModalAllocDisplay(this.value)" class="fp-slider" style="margin-top: 8px;" />
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 5px; line-height: 1.4;">
+                        When the goal is about to be achieved at the specified target age, the allocation glides to <strong>100% Debt and 0% Equity</strong> for complete capital protection.
+                    </div>
+                    <div class="fp-lbl-flex" style="margin-top: 10px;">
+                        <span style="font-size: 12px; font-weight: 500;">Starting Accumulation Mix Today:</span>
+                        <span id="goal-modal-alloc-disp" style="font-size: 12px; font-weight: 700; color: var(--brand-navy);">80% Equity | 20% Debt</span>
+                    </div>
+                    <input type="range" id="goal-modal-equity-range" min="0" max="100" step="5" value="80" oninput="updateGoalModalAllocDisplay(this.value)" class="fp-slider" style="margin-top: 6px;" />
                     <div class="fp-alloc-bar-preview">
                         <div id="goal-alloc-fill-eq" class="alloc-bar-eq" style="width: 80%;">80% Equity</div>
                         <div id="goal-alloc-fill-dt" class="alloc-bar-dt" style="width: 20%;">20% Debt</div>
                     </div>
-                    <span class="fp-input-hint">Earmark higher equity for long horizons (>5 yrs) and higher debt for near-term goals.</span>
+                    <span class="fp-input-hint">Invests in growth equity today, automatically de-risking into 100% Debt at the specified age.</span>
                 </div>
 
                 <div style="display: flex; gap: 10px; justify-content: space-between; align-items: center; margin-top: 16px;">

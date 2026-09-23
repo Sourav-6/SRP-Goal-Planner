@@ -1180,14 +1180,30 @@ window.renderGoalLumpsumPartitionTable = function renderGoalLumpsumPartitionTabl
         rowsHtml += `
             <tr>
                 <td><strong>${escapeHtml(g.name || 'Life Milestone')}</strong></td>
-                <td>${months} Mos (${targetAge} Yrs / ${targetYear})</td>
-                <td style="font-weight: 600;">${fmtINR_plain(inflatedGoalAmount)}</td>
-                <td style="color: var(--brand-blue); font-weight: 700;">${fmtINR_plain(res.pv)}</td>
-                <td><span class="badge-partition-mix ${mixClass}">${res.debtPct.toFixed(1)}%</span></td>
+                <td>Age ${targetAge} (${targetYear}) • ${months} mos</td>
+                <td style="font-weight: 700; color: var(--brand-navy);">${fmtINR_plain(inflatedGoalAmount)}</td>
+                <td style="background: rgba(16, 185, 129, 0.04);">
+                    <span class="badge-partition-mix mix-pure-debt" style="font-weight: 700; background: #dcfce7; color: #15803d; border: 1px solid #86efac;">
+                        100% Debt / 0% Equity
+                    </span>
+                    <div style="font-size: 11px; color: #15803d; margin-top: 2px; font-weight: 600;">
+                        ${fmtINR_plain(inflatedGoalAmount)} in Debt
+                    </div>
+                </td>
+                <td style="color: var(--brand-blue); font-weight: 800; font-size: 13.5px;">${fmtINR_plain(res.pv)}</td>
+                <td>
+                    <span class="badge-partition-mix ${mixClass}">
+                        ${res.equityPct.toFixed(0)}% Eq / ${res.debtPct.toFixed(0)}% Dt
+                    </span>
+                </td>
                 <td style="color: #059669; font-weight: 600;">${fmtINR_plain(res.debtValue)}</td>
-                <td><span class="badge-partition-mix ${mixClass}">${res.equityPct.toFixed(1)}%</span></td>
                 <td style="color: #4f46e5; font-weight: 600;">${fmtINR_plain(res.equityValue)}</td>
-                <td style="color: var(--text-secondary);">${(res.monthlyRate * 100).toFixed(2)}% / mo</td>
+                <td>
+                    <button type="button" class="fp-btn-view-schedule" onclick="openGoalScheduleModal('${g.id}')">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                        View Glide Schedule
+                    </button>
+                </td>
             </tr>
         `;
     });
@@ -1204,22 +1220,33 @@ window.renderGoalLumpsumPartitionTable = function renderGoalLumpsumPartitionTabl
         rowsHtml += `
             <tr style="background: rgba(2, 132, 199, 0.04);">
                 <td>
-                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
-                        <span><strong>Retirement Monthly Pension Stream</strong></span>
-                        <button type="button" class="fp-btn-view-schedule" onclick="openRetScheduleModal()">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-                            View Monthly Schedule (${retRes.totalMonths} Mos)
-                        </button>
+                    <div style="font-weight: 700; color: var(--brand-navy);">Retirement Monthly Pension Stream</div>
+                    <div style="font-size: 11px; color: var(--text-tertiary);">${retRes.totalMonths} Monthly Payouts</div>
+                </td>
+                <td>Age ${retRes.startAge} &rarr; ${retRes.exhaustionAge} (${retRes.totalMonths} mos)</td>
+                <td style="font-weight: 700; color: var(--brand-navy);">${fmtINR_plain(retRes.expenseToday)} / mo inflated</td>
+                <td style="background: rgba(16, 185, 129, 0.04);">
+                    <span class="badge-partition-mix mix-pure-debt" style="font-weight: 700; background: #dcfce7; color: #15803d; border: 1px solid #86efac;">
+                        100% Debt / 0% Equity
+                    </span>
+                    <div style="font-size: 11px; color: #15803d; margin-top: 2px; font-weight: 600;">
+                        100% De-risked at Each Payout
                     </div>
                 </td>
-                <td>${retRes.totalMonths} Mos (Age ${retRes.startAge} &rarr; ${retRes.exhaustionAge})</td>
-                <td style="font-weight: 600;">${fmtINR_plain(retRes.expenseToday)} / mo inflated</td>
-                <td style="color: var(--brand-blue); font-weight: 700;">${fmtINR_plain(retRes.totalPV)}</td>
-                <td><span class="badge-partition-mix mix-pure-debt">${retRes.overallDebtPct.toFixed(1)}%</span></td>
+                <td style="color: var(--brand-blue); font-weight: 800; font-size: 13.5px;">${fmtINR_plain(retRes.totalPV)}</td>
+                <td>
+                    <span class="badge-partition-mix mix-pure-debt">
+                        ${retRes.overallEquityPct.toFixed(0)}% Eq / ${retRes.overallDebtPct.toFixed(0)}% Dt
+                    </span>
+                </td>
                 <td style="color: #059669; font-weight: 600;">${fmtINR_plain(retRes.totalDebt)}</td>
-                <td><span class="badge-partition-mix mix-pure-eq">${retRes.overallEquityPct.toFixed(1)}%</span></td>
                 <td style="color: #4f46e5; font-weight: 600;">${fmtINR_plain(retRes.totalEquity)}</td>
-                <td style="color: var(--text-secondary);">Dynamic Glide</td>
+                <td>
+                    <button type="button" class="fp-btn-view-schedule" onclick="openRetScheduleModal()">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                        View Monthly Schedule
+                    </button>
+                </td>
             </tr>
         `;
     }
@@ -1240,12 +1267,12 @@ window.renderGoalLumpsumPartitionTable = function renderGoalLumpsumPartitionTabl
             tfoot.innerHTML = `
                 <tr>
                     <td colspan="3" style="text-align: right; font-weight: 700; color: var(--brand-navy);">Consolidated Portfolio Lumpsum:</td>
+                    <td style="color: #15803d; font-weight: 800; background: rgba(16, 185, 129, 0.06);">100% Debt at Specified Ages</td>
                     <td style="color: var(--brand-blue); font-size: 14px; font-weight: 800;">${fmtINR_plain(totalPortfolioPV)}</td>
-                    <td><span class="badge-partition-mix mix-pure-debt">${overallDebtPct.toFixed(1)}%</span></td>
+                    <td><span class="badge-partition-mix mix-pure-debt">${overallEqPct.toFixed(0)}% Eq / ${overallDebtPct.toFixed(0)}% Dt</span></td>
                     <td style="color: #059669; font-size: 14px; font-weight: 800;">${fmtINR_plain(totalPortfolioDebt)}</td>
-                    <td><span class="badge-partition-mix mix-pure-eq">${overallEqPct.toFixed(1)}%</span></td>
                     <td style="color: #4f46e5; font-size: 14px; font-weight: 800;">${fmtINR_plain(totalPortfolioEquity)}</td>
-                    <td>100% De-risked</td>
+                    <td style="font-weight: 700; color: #059669;">100% Capital Protected</td>
                 </tr>
             `;
         } else {
@@ -1268,15 +1295,178 @@ window.renderGoalLumpsumPartitionTable = function renderGoalLumpsumPartitionTabl
     };
 };
 
+window.openGoalScheduleModal = function openGoalScheduleModal(goalId) {
+    const modal = document.getElementById('modal-ret-schedule');
+    if (!modal) return;
+
+    const goal = (window.fpMilestones || []).find(m => m.id === goalId);
+    if (!goal) return;
+
+    const currentAge = parseInt(document.getElementById('inp-age')?.value) || 30;
+    const targetAge = goal.target_age || (currentAge + 5);
+    const months = Math.max(1, (targetAge - currentAge) * 12);
+    const pvAmount = parseFloat(goal.present_value) || 0;
+    const inf = (parseFloat(goal.inflation_rate) || 7.0) / 100;
+    const inflatedGoalAmount = pvAmount * Math.pow(1 + inf, months / 12);
+
+    const initEquity = parseFloat(document.getElementById('inp-init-equity')?.value);
+    const startDebtPct = isNaN(initEquity) ? 20 : Math.max(0, 100 - initEquity);
+    const monthlyDebtInc = 10;
+    const preIrrVal = parseFloat(document.getElementById('inp-pre-irr')?.value);
+    const equityIRR = (isNaN(preIrrVal) ? 12.0 : preIrrVal) / 100;
+    const postIrrVal = parseFloat(document.getElementById('inp-post-irr')?.value);
+    const debtIRR = (isNaN(postIrrVal) ? 7.0 : postIrrVal) / 100;
+    const glideStartM = 10;
+
+    // Set modal headers
+    const titleEl = modal.querySelector('.fp-modal-title');
+    const subTitleEl = document.getElementById('modal-ret-schedule-subtitle');
+    if (titleEl) titleEl.innerText = `Goal Glide Schedule: ${goal.name || 'Life Milestone'}`;
+    if (subTitleEl) subTitleEl.innerHTML = `When goal is about to be achieved at specified Target Age ${targetAge}, the partition is <strong>100% Debt and 0% Equity</strong>. Below is the exact month-by-month de-risking progression.`;
+
+    const tbody = document.getElementById('ret-schedule-tbody');
+    const thead = modal.querySelector('table thead');
+    if (thead) {
+        thead.innerHTML = `
+            <tr>
+                <th>Timeline Step</th>
+                <th>Age</th>
+                <th>Months to Goal</th>
+                <th>Goal Value (₹)</th>
+                <th>Discounted PV (₹)</th>
+                <th style="background: rgba(16, 185, 129, 0.08); color: #065f46;">Debt %</th>
+                <th>Debt Portion (₹)</th>
+                <th>Equity %</th>
+                <th>Equity Portion (₹)</th>
+                <th>Blended Rate</th>
+            </tr>
+        `;
+    }
+
+    const kpiPv = document.getElementById('ret-sched-kpi-pv');
+    const kpiDebt = document.getElementById('ret-sched-kpi-debt');
+    const kpiEquity = document.getElementById('ret-sched-kpi-equity');
+
+    const kpiLabels = modal.querySelectorAll('.fp-pkpi-label');
+    if (kpiLabels[0]) kpiLabels[0].innerText = `Target at Age ${targetAge} (100% Debt)`;
+    if (kpiLabels[1]) kpiLabels[1].innerText = `Lumpsum Needed Today (PV)`;
+    if (kpiLabels[2]) kpiLabels[2].innerText = `Today's Starting Mix`;
+
+    // Compute month-by-month schedule from Month 0 down to Month -months
+    const scheduleRows = [];
+    let cumFactor = 1.0;
+
+    // Month 0 (When goal is achieved)
+    scheduleRows.push({
+        relativeMonth: 0,
+        age: targetAge.toFixed(1),
+        label: `Month 0 (Goal Achieved @ Age ${targetAge})`,
+        goalVal: inflatedGoalAmount,
+        pv: inflatedGoalAmount,
+        debtPct: 100,
+        equityPct: 0,
+        debtValue: inflatedGoalAmount,
+        equityValue: 0,
+        monthlyRate: debtIRR / 12,
+        isMaturity: true
+    });
+
+    for (let m = 1; m <= months; m++) {
+        const dPct = Math.min(100, Math.max(startDebtPct, startDebtPct + monthlyDebtInc * Math.max(0, glideStartM - m)));
+        const ePct = 100 - dPct;
+        const annualReturn = (dPct / 100) * debtIRR + (ePct / 100) * equityIRR;
+        const monthlyRate = annualReturn / 12;
+        cumFactor *= (1 + monthlyRate);
+
+        const pv = inflatedGoalAmount / cumFactor;
+        const debtValue = pv * (dPct / 100);
+        const equityValue = pv * (ePct / 100);
+
+        scheduleRows.push({
+            relativeMonth: -m,
+            age: (targetAge - m / 12).toFixed(1),
+            label: m === months ? `Month -${m} (Today / Now)` : `Month -${m}`,
+            goalVal: inflatedGoalAmount,
+            pv,
+            debtPct: dPct,
+            equityPct: ePct,
+            debtValue,
+            equityValue,
+            monthlyRate,
+            isToday: (m === months)
+        });
+    }
+
+    const todayRow = scheduleRows[scheduleRows.length - 1];
+    if (kpiPv) kpiPv.innerText = fmtINR_plain(inflatedGoalAmount);
+    if (kpiDebt) kpiDebt.innerText = fmtINR_plain(todayRow.pv);
+    if (kpiEquity) kpiEquity.innerText = `${todayRow.equityPct.toFixed(0)}% Eq / ${todayRow.debtPct.toFixed(0)}% Dt`;
+
+    let html = '';
+    scheduleRows.forEach(r => {
+        const rowStyle = r.isMaturity 
+            ? 'background: #f0fdf4; font-weight: 700;' 
+            : (r.isToday ? 'background: #eff6ff; font-weight: 700;' : '');
+        
+        const mixClass = r.debtPct >= 80 ? 'mix-pure-debt' : (r.equityPct >= 70 ? 'mix-pure-eq' : 'mix-glide');
+
+        html += `
+            <tr style="${rowStyle}">
+                <td>${escapeHtml(r.label)}</td>
+                <td>Age ${r.age}</td>
+                <td>${r.relativeMonth === 0 ? '0 mos (Maturity)' : Math.abs(r.relativeMonth) + ' mos'}</td>
+                <td>${fmtINR_plain(r.goalVal)}</td>
+                <td style="color: var(--brand-blue); font-weight: 700;">${fmtINR_plain(r.pv)}</td>
+                <td><span class="badge-partition-mix ${mixClass}">${r.debtPct.toFixed(1)}%</span></td>
+                <td style="color: #059669;">${fmtINR_plain(r.debtValue)}</td>
+                <td><span class="badge-partition-mix ${mixClass}">${r.equityPct.toFixed(1)}%</span></td>
+                <td style="color: #4f46e5;">${fmtINR_plain(r.equityValue)}</td>
+                <td style="color: var(--text-secondary);">${(r.monthlyRate * 100).toFixed(2)}%</td>
+            </tr>
+        `;
+    });
+
+    if (tbody) tbody.innerHTML = html;
+    modal.style.display = 'flex';
+};
+
 window.openRetScheduleModal = function openRetScheduleModal() {
     const modal = document.getElementById('modal-ret-schedule');
     if (!modal) return;
 
     const schedule = window.fpLatestRetSchedule || [];
     const tbody = document.getElementById('ret-schedule-tbody');
+    const titleEl = modal.querySelector('.fp-modal-title');
+    const subTitleEl = document.getElementById('modal-ret-schedule-subtitle');
+    if (titleEl) titleEl.innerText = 'Retirement Monthly Cashflow Glide Schedule';
+    if (subTitleEl) subTitleEl.innerHTML = 'Each retirement month is an individual goal. At payout month, partition is <strong>100% Debt and 0% Equity</strong>.';
+
+    const thead = modal.querySelector('table thead');
+    if (thead) {
+        thead.innerHTML = `
+            <tr>
+                <th>Payout Month</th>
+                <th>Age</th>
+                <th>Months to Payout</th>
+                <th>Monthly Payout (₹)</th>
+                <th>PV Today (₹)</th>
+                <th style="background: rgba(16, 185, 129, 0.08); color: #065f46;">Debt %</th>
+                <th>Debt Portion (₹)</th>
+                <th>Equity %</th>
+                <th>Equity Portion (₹)</th>
+                <th>Blended Return</th>
+            </tr>
+        `;
+    }
+
     const kpiPv = document.getElementById('ret-sched-kpi-pv');
     const kpiDebt = document.getElementById('ret-sched-kpi-debt');
     const kpiEquity = document.getElementById('ret-sched-kpi-equity');
+
+    const kpiLabels = modal.querySelectorAll('.fp-pkpi-label');
+    if (kpiLabels[0]) kpiLabels[0].innerText = 'Retirement Total Lumpsum PV';
+    if (kpiLabels[1]) kpiLabels[1].innerText = 'Retirement Debt Portion';
+    if (kpiLabels[2]) kpiLabels[2].innerText = 'Retirement Equity Portion';
 
     let totalPV = 0;
     let totalDebt = 0;
@@ -1416,12 +1606,13 @@ window.renderMilestoneGoalCards = function renderMilestoneGoalCards() {
 
                 <div class="fp-goal-alloc-row">
                     <div class="alloc-lbl-row">
-                        <span>Asset Mix: <strong>${eqPct}% Equity / ${dtPct}% Debt</strong></span>
-                        <span>Funded: <strong>${fundedPct}%</strong></span>
+                        <span>At Target Age ${targetAge}: <strong style="color: #059669;">100% Debt & 0% Equity (Capital Protected)</strong></span>
+                        <span>Today's Mix: <strong>${eqPct}% Eq / ${dtPct}% Dt</strong></span>
                     </div>
                     <div class="fp-alloc-bar-preview">
-                        <div class="alloc-bar-eq" style="width: ${eqPct}%;">${eqPct >= 15 ? eqPct + '% Eq' : ''}</div>
-                        <div class="alloc-bar-dt" style="width: ${dtPct}%;">${dtPct >= 15 ? dtPct + '% Dt' : ''}</div>
+                        <div class="alloc-bar-dt" style="width: 100%; background: linear-gradient(90deg, #10b981 0%, #059669 100%); font-size: 11px; font-weight: 700;">
+                            Maturity @ Age ${targetAge}: 100% Debt & 0% Equity
+                        </div>
                     </div>
                 </div>
             </div>
