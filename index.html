@@ -772,6 +772,73 @@
                                 </table>
                             </div>
                         </div>
+
+                        <!-- GOAL ASSET ACCUMULATION SCHEDULE (LUMPSUM MODE) -->
+                        <div class="fp-goal-partition-card" id="goal-accumulation-section" style="margin-top: 24px;">
+                            <div class="fp-goal-partition-header">
+                                <div class="fp-partition-title-group">
+                                    <div class="fp-partition-title">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                                        Goal Asset Accumulation Schedule (Lumpsum Mode)
+                                    </div>
+                                    <p class="fp-partition-subtitle">
+                                        Forward projection showing how the initial lumpsum grows, compounds, and de-risks into <strong>100% Debt & 0% Equity</strong> at goal fulfillment.
+                                    </p>
+                                </div>
+
+                                <!-- Controls: Goal Selector & Frequency Toggle -->
+                                <div class="fp-accum-controls-group">
+                                    <div class="fp-accum-control-item">
+                                        <label for="sel-accum-goal">Select Goal / Target:</label>
+                                        <select id="sel-accum-goal" class="fp-select fp-accum-select" onchange="renderAssetAccumulationTable()">
+                                            <!-- Dynamically populated options -->
+                                        </select>
+                                    </div>
+                                    <div class="fp-accum-control-item">
+                                        <label>View Mode:</label>
+                                        <div class="fp-toggle-pill-group">
+                                            <button type="button" class="fp-pill-btn active" id="btn-accum-annual" onclick="setAccumulationViewMode('annual')">Annual (Year-by-Year)</button>
+                                            <button type="button" class="fp-pill-btn" id="btn-accum-monthly" onclick="setAccumulationViewMode('monthly')">Monthly (Full Glide)</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Selected Goal Accumulation KPI Summary -->
+                            <div class="fp-partition-kpi-group" id="accum-kpi-group" style="margin-bottom: 16px;">
+                                <div class="fp-pkpi-card">
+                                    <span class="fp-pkpi-label">Initial Lumpsum (PV)</span>
+                                    <span class="fp-pkpi-val" id="accum-kpi-pv">₹ 0</span>
+                                </div>
+                                <div class="fp-pkpi-card pkpi-debt">
+                                    <span class="fp-pkpi-label">Accumulated Growth</span>
+                                    <span class="fp-pkpi-val" id="accum-kpi-growth" style="color: #2563eb;">₹ 0</span>
+                                </div>
+                                <div class="fp-pkpi-card pkpi-equity">
+                                    <span class="fp-pkpi-label">Target Amount at Maturity</span>
+                                    <span class="fp-pkpi-val" id="accum-kpi-target">₹ 0</span>
+                                </div>
+                                <div class="fp-pkpi-card" style="background: #f0fdf4; border-color: #86efac;">
+                                    <span class="fp-pkpi-label" style="color: #166534; font-weight: 700;">At Specified Goal Age</span>
+                                    <span class="fp-pkpi-val" style="color: #15803d; font-size: 14px; font-weight: 800;">100% Debt & 0% Equity</span>
+                                </div>
+                            </div>
+
+                            <!-- Accumulation Table -->
+                            <div class="fp-table-wrapper fp-partition-table-wrap">
+                                <table class="fp-data-table fp-partition-table" id="asset-accumulation-table">
+                                    <thead id="asset-accumulation-thead">
+                                        <!-- Injected dynamically via JS -->
+                                    </thead>
+                                    <tbody id="asset-accumulation-tbody">
+                                        <!-- Injected dynamically via JS -->
+                                    </tbody>
+                                    <tfoot id="asset-accumulation-tfoot">
+                                        <!-- Totals row injected via JS -->
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
                     </section>
 
                 </div>

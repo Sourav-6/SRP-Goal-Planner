@@ -1293,6 +1293,431 @@ window.renderGoalLumpsumPartitionTable = function renderGoalLumpsumPartitionTabl
         overallDebtPct,
         overallEqPct
     };
+
+    // Also trigger Asset Accumulation Table update
+    if (typeof window.renderAssetAccumulationTable === 'function') {
+        window.renderAssetAccumulationTable();
+    }
+};
+
+// ==========================================================================
+// GOAL ASSET ACCUMULATION SCHEDULE (LUMPSUM MODE)
+// Forward projection showing how lumpsum accumulates to fulfill the goal
+// ==========================================================================
+
+window.fpAccumulationViewMode = 'annual'; // 'annual' | 'monthly'
+
+window.setAccumulationViewMode = function setAccumulationViewMode(mode) {
+    window.fpAccumulationViewMode = mode;
+    const btnAnnual = document.getElementById('btn-accum-annual');
+    const btnMonthly = document.getElementById('btn-accum-monthly');
+    if (btnAnnual) btnAnnual.classList.toggle('active', mode === 'annual');
+    if (btnMonthly) btnMonthly.classList.toggle('active', mode === 'monthly');
+    window.renderAssetAccumulationTable();
+};
+
+window.renderAssetAccumulationTable = function renderAssetAccumulationTable() {
+    const tableEl = document.getElementById('asset-accumulation-table');
+    const theadEl = document.getElementById('asset-accumulation-thead');
+    const tbodyEl = document.getElementById('asset-accumulation-tbody');
+    const tfootEl = document.getElementById('asset-accumulation-tfoot');
+    const selGoal = document.getElementById('sel-accum-goal');
+    if (!tbodyEl) return;
+
+    const currentAge = parseInt(document.getElementById('inp-age')?.value) || 30;
+    const currentYear = new Date().getFullYear();
+    const milestones = window.fpMilestones || [];
+    const isRetEnabled = window.fpRetirementEnabled !== false;
+
+    // Planner parameters
+    const initEquity = parseFloat(document.getElementById('inp-init-equity')?.value);
+    const startDebtPct = isNaN(initEquity) ? 20 : Math.max(0, 100 - initEquity);
+    const monthlyDebtInc = 10;
+    const preIrrVal = parseFloat(document.getElementById('inp-pre-irr')?.value);
+    const equityIRR = (isNaN(preIrrVal) ? 12.0 : preIrrVal) / 100;
+    const postIrrVal = parseFloat(document.getElementById('inp-post-irr')?.value);
+    const debtIRR = (isNaN(postIrrVal) ? 7.0 : postIrrVal) / 100;
+    const glideStartM = 10;
+
+    // 1. Populate / sync goal selector dropdown
+    if (selGoal) {
+        const currentSelectedVal = selGoal.value;
+        let optHtml = `<option value="all">All Goals (Consolidated Lumpsum)</option>`;
+
+        milestones.forEach((g) => {
+            const targetAge = g.target_age || (currentAge + 5);
+            const targetYear = g.target_year || (currentYear + (targetAge - currentAge));
+            optHtml += `<option value="${g.id}">${escapeHtml(g.name || 'Life Milestone')} (Age ${targetAge} • ${targetYear})</option>`;
+        });
+
+        if (isRetEnabled) {
+            const retAge = parseInt(document.getElementById('inp-ret-age')?.value) || 60;
+            const pensionDelay = parseInt(document.getElementById('inp-pension-delay')?.value) || 0;
+            const exAge = parseInt(document.getElementById('inp-exhaustion-expected')?.value) || 85;
+            optHtml += `<option value="retirement">Retirement Monthly Pension Stream (Age ${retAge + pensionDelay} - ${exAge})</option>`;
+        }
+
+        selGoal.innerHTML = optHtml;
+        if (currentSelectedVal && selGoal.querySelector(`option[value="${currentSelectedVal}"]`)) {
+            selGoal.value = currentSelectedVal;
+        }
+    }
+
+    const selectedGoalId = selGoal ? selGoal.value : 'all';
+    const viewMode = window.fpAccumulationViewMode || 'annual';
+
+    // Helper: compute month-by-month accumulation for a single goal
+    function getSingleGoalMonthAccumulation(targetAge, pvAmount, inflationRate, goalName) {
+        const months = Math.max(1, (targetAge - currentAge) * 12);
+        const inflatedFV = pvAmount * Math.pow(1 + inflationRate, months / 12);
+        const lump = window.calculateGoalLumpsumGlide(months, inflatedFV);
+        const initialPV = lump.pv;
+
+        let curBal = initialPV;
+        const monthsList = [];
+
+        for (let m = 1; m <= months; m++) {
+            const remMonths = months - (m - 1);
+            const dPct = Math.min(100, Math.max(startDebtPct, startDebtPct + monthlyDebtInc * Math.max(0, glideStartM - remMonths)));
+            const ePct = 100 - dPct;
+            const annualReturn = (dPct / 100) * debtIRR + (ePct / 100) * equityIRR;
+            const monthlyRate = annualReturn / 12;
+
+            const openBal = curBal;
+            const debtPortion = openBal * (dPct / 100);
+            const equityPortion = openBal * (ePct / 100);
+            const growth = openBal * monthlyRate;
+            const closeBal = openBal + growth;
+            curBal = closeBal;
+
+            monthsList.push({
+                month: m,
+                remMonths: remMonths - 1,
+                age: (currentAge + m / 12).toFixed(1),
+                year: currentYear + Math.floor(m / 12),
+                openBal,
+                debtPct: dPct,
+                equityPct: ePct,
+                debtPortion,
+                equityPortion,
+                growth,
+                closeBal,
+                monthlyRate,
+                isMaturity: (m === months),
+                targetFV: inflatedFV,
+                goalName: goalName
+            });
+        }
+
+        return {
+            months,
+            targetAge,
+            targetFV: inflatedFV,
+            initialPV,
+            totalGrowth: curBal - initialPV,
+            monthsList
+        };
+    }
+
+    // 2. Build the data depending on selection
+    let activeGoalsData = [];
+
+    if (selectedGoalId === 'all') {
+        milestones.forEach((g) => {
+            const targetAge = g.target_age || (currentAge + 5);
+            const pvAmount = parseFloat(g.present_value) || 0;
+            const inf = (parseFloat(g.inflation_rate) || 7.0) / 100;
+            if (pvAmount > 0) {
+                activeGoalsData.push(getSingleGoalMonthAccumulation(targetAge, pvAmount, inf, g.name || 'Life Milestone'));
+            }
+        });
+    } else if (selectedGoalId === 'retirement') {
+        const retRes = window.calculateRetirementMonthlyStreamLumpsum();
+        if (retRes.enabled && retRes.totalMonths > 0) {
+            const expenseToday = retRes.expenseToday;
+            const inflation = (parseFloat(document.getElementById('inp-inflation')?.value) || 7.0) / 100;
+            const startMonth = Math.max(0, (retRes.startAge - currentAge) * 12);
+
+            for (let t = 1; t <= retRes.totalMonths; t++) {
+                const totalM = startMonth + t;
+                const payoutAmt = expenseToday * Math.pow(1 + inflation, totalM / 12);
+                activeGoalsData.push(getSingleGoalMonthAccumulation(currentAge + totalM / 12, payoutAmt / Math.pow(1 + inflation, totalM / 12), inflation, `Retirement Payout M${t}`));
+            }
+        }
+    } else {
+        const g = milestones.find(m => m.id === selectedGoalId);
+        if (g) {
+            const targetAge = g.target_age || (currentAge + 5);
+            const pvAmount = parseFloat(g.present_value) || 0;
+            const inf = (parseFloat(g.inflation_rate) || 7.0) / 100;
+            activeGoalsData.push(getSingleGoalMonthAccumulation(targetAge, pvAmount, inf, g.name || 'Life Milestone'));
+        }
+    }
+
+    // Check empty state
+    if (activeGoalsData.length === 0) {
+        if (theadEl) theadEl.innerHTML = '';
+        tbodyEl.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 28px; color: var(--text-tertiary);">No milestone goals available. Add a goal above to view its lumpsum accumulation schedule.</td></tr>`;
+        if (tfootEl) tfootEl.innerHTML = '';
+        return;
+    }
+
+    // Calculate Summary KPIs
+    let totalInitialPV = 0;
+    let totalTargetFV = 0;
+    let maxMonths = 0;
+
+    activeGoalsData.forEach((gd) => {
+        totalInitialPV += gd.initialPV;
+        totalTargetFV += gd.targetFV;
+        if (gd.months > maxMonths) maxMonths = gd.months;
+    });
+
+    const totalGrowth = totalTargetFV - totalInitialPV;
+    const growthPct = totalInitialPV > 0 ? (totalGrowth / totalInitialPV) * 100 : 0;
+
+    const kpiPv = document.getElementById('accum-kpi-pv');
+    const kpiGrowth = document.getElementById('accum-kpi-growth');
+    const kpiTarget = document.getElementById('accum-kpi-target');
+
+    if (kpiPv) kpiPv.innerText = fmtINR_plain(totalInitialPV);
+    if (kpiGrowth) kpiGrowth.innerHTML = `${fmtINR_plain(totalGrowth)} <span style="font-size:11px; font-weight:600; color:#16a34a;">(+${growthPct.toFixed(1)}%)</span>`;
+    if (kpiTarget) kpiTarget.innerText = fmtINR_plain(totalTargetFV);
+
+    // 3. Render Table
+    if (viewMode === 'annual') {
+        if (theadEl) {
+            theadEl.innerHTML = `
+                <tr>
+                    <th>Timeline (Year)</th>
+                    <th>Age</th>
+                    <th>Time Remaining</th>
+                    <th>Beginning Asset (₹)</th>
+                    <th>Asset Partition (Mix)</th>
+                    <th>Equity Balance (₹)</th>
+                    <th>Debt Balance (₹)</th>
+                    <th>Yearly Growth (₹)</th>
+                    <th>Ending Asset (₹)</th>
+                    <th style="background: rgba(16, 185, 129, 0.08); color: #065f46;">Goal Fulfillment (100% Debt)</th>
+                </tr>
+            `;
+        }
+
+        const totalYears = Math.ceil(maxMonths / 12);
+        let rowsHtml = '';
+        let cumReturnsAll = 0;
+
+        for (let y = 1; y <= totalYears; y++) {
+            const startM = (y - 1) * 12 + 1;
+            const endM = Math.min(y * 12, maxMonths);
+            const yearAgeStart = currentAge + y - 1;
+            const yearAgeEnd = currentAge + y;
+            const yearCalendar = currentYear + y - 1;
+
+            let yearOpenBal = 0;
+            let yearCloseBal = 0;
+            let yearGrowth = 0;
+            let yearEndDebtBal = 0;
+            let yearEndEqBal = 0;
+            let maturedGoalsInYear = [];
+
+            activeGoalsData.forEach((gd) => {
+                if (gd.months >= startM) {
+                    const monthObjStart = gd.monthsList[startM - 1];
+                    if (monthObjStart) yearOpenBal += monthObjStart.openBal;
+
+                    const effectiveEndM = Math.min(endM, gd.months);
+                    const monthObjEnd = gd.monthsList[effectiveEndM - 1];
+                    if (monthObjEnd) {
+                        yearCloseBal += monthObjEnd.closeBal;
+                        yearEndDebtBal += monthObjEnd.closeBal * (monthObjEnd.debtPct / 100);
+                        yearEndEqBal += monthObjEnd.closeBal * (monthObjEnd.equityPct / 100);
+                    }
+
+                    for (let m = startM; m <= effectiveEndM; m++) {
+                        if (gd.monthsList[m - 1]) {
+                            yearGrowth += gd.monthsList[m - 1].growth;
+                        }
+                    }
+
+                    if (gd.months >= startM && gd.months <= endM) {
+                        maturedGoalsInYear.push({
+                            name: gd.monthsList[0]?.goalName || 'Goal',
+                            age: gd.targetAge,
+                            fv: gd.targetFV
+                        });
+                    }
+                }
+            });
+
+            cumReturnsAll += yearGrowth;
+            const endDebtPct = yearCloseBal > 0 ? (yearEndDebtBal / yearCloseBal) * 100 : 0;
+            const endEqPct = yearCloseBal > 0 ? (yearEndEqBal / yearCloseBal) * 100 : 0;
+            const mixClass = endDebtPct >= 80 ? 'mix-pure-debt' : (endEqPct >= 70 ? 'mix-pure-eq' : 'mix-glide');
+
+            const isMaturityRow = maturedGoalsInYear.length > 0;
+            const trClass = isMaturityRow ? 'row-maturity-fulfilled' : '';
+
+            let fulfillHtml = `<span style="color: var(--text-tertiary); font-size: 11.5px;">Compounding in growth phase</span>`;
+            if (isMaturityRow) {
+                fulfillHtml = maturedGoalsInYear.map(mg => `
+                    <div style="color: #15803d; font-weight: 700; font-size: 12px;">
+                        Fulfilled: ${escapeHtml(mg.name)} at Age ${mg.age} (${fmtINR_plain(mg.fv)}) in <strong>100% Debt</strong>
+                    </div>
+                `).join('');
+            }
+
+            const remYears = Math.max(0, totalYears - y);
+            const remLabel = remYears === 0 ? 'Goal Achieved' : `${remYears} yr${remYears > 1 ? 's' : ''} left`;
+
+            rowsHtml += `
+                <tr class="${trClass}">
+                    <td><strong>Year ${y}</strong> (${yearCalendar})</td>
+                    <td>Age ${yearAgeStart} &rarr; ${yearAgeEnd}</td>
+                    <td style="color: var(--text-secondary); font-size: 12px;">${remLabel}</td>
+                    <td style="font-weight: 600;">${fmtINR_plain(yearOpenBal)}</td>
+                    <td>
+                        <span class="badge-partition-mix ${mixClass}">
+                            ${endEqPct.toFixed(0)}% Eq / ${endDebtPct.toFixed(0)}% Dt
+                        </span>
+                    </td>
+                    <td style="color: #4f46e5; font-weight: 600;">${fmtINR_plain(yearEndEqBal)}</td>
+                    <td style="color: #059669; font-weight: 600;">${fmtINR_plain(yearEndDebtBal)}</td>
+                    <td style="color: #2563eb; font-weight: 700;">+${fmtINR_plain(yearGrowth)}</td>
+                    <td style="font-weight: 800; color: var(--brand-navy); font-size: 13.5px;">${fmtINR_plain(yearCloseBal)}</td>
+                    <td style="background: rgba(16, 185, 129, 0.04);">${fulfillHtml}</td>
+                </tr>
+            `;
+        }
+
+        tbodyEl.innerHTML = rowsHtml;
+
+        if (tfootEl) {
+            tfootEl.innerHTML = `
+                <tr>
+                    <td colspan="3" style="text-align: right; font-weight: 700; color: var(--brand-navy);">Lumpsum Accumulation Summary:</td>
+                    <td style="font-weight: 800; color: var(--brand-blue);">${fmtINR_plain(totalInitialPV)} (PV Invested)</td>
+                    <td><span class="badge-partition-mix mix-pure-debt">100% Debt at Maturity</span></td>
+                    <td colspan="2" style="color: #15803d; font-weight: 700;">Capital Fully Protected</td>
+                    <td style="color: #2563eb; font-weight: 800;">+${fmtINR_plain(cumReturnsAll)} Growth</td>
+                    <td style="font-weight: 800; color: #15803d; font-size: 14px;">${fmtINR_plain(totalTargetFV)}</td>
+                    <td style="font-weight: 800; color: #15803d;">100% Fulfilled in Debt</td>
+                </tr>
+            `;
+        }
+
+    } else {
+        // Monthly View (Matches Excel Screenshot 2 fidelity)
+        if (theadEl) {
+            theadEl.innerHTML = `
+                <tr>
+                    <th>Month #</th>
+                    <th>Age</th>
+                    <th>Months to Goal</th>
+                    <th>Opening Value (₹)</th>
+                    <th style="background: rgba(16, 185, 129, 0.08); color: #065f46;">Debt %</th>
+                    <th>Debt Balance (₹)</th>
+                    <th>Equity %</th>
+                    <th>Equity Balance (₹)</th>
+                    <th>Monthly Return (₹)</th>
+                    <th>Ending Value (₹)</th>
+                    <th>Status</th>
+                </tr>
+            `;
+        }
+
+        let rowsHtml = '';
+        let cumMonthGrowth = 0;
+
+        for (let m = 1; m <= maxMonths; m++) {
+            let mOpenBal = 0;
+            let mCloseBal = 0;
+            let mDebtBal = 0;
+            let mEqBal = 0;
+            let mGrowth = 0;
+            let maturedInMonth = [];
+
+            activeGoalsData.forEach((gd) => {
+                if (gd.months >= m) {
+                    const row = gd.monthsList[m - 1];
+                    if (row) {
+                        mOpenBal += row.openBal;
+                        mCloseBal += row.closeBal;
+                        mDebtBal += row.debtPortion;
+                        mEqBal += row.equityPortion;
+                        mGrowth += row.growth;
+                        if (row.isMaturity) {
+                            maturedInMonth.push({
+                                name: row.goalName,
+                                age: row.age,
+                                fv: row.targetFV
+                            });
+                        }
+                    }
+                }
+            });
+
+            cumMonthGrowth += mGrowth;
+            const mDebtPct = mOpenBal > 0 ? (mDebtBal / mOpenBal) * 100 : 0;
+            const mEqPct = mOpenBal > 0 ? (mEqBal / mOpenBal) * 100 : 0;
+            const mixClass = mDebtPct >= 80 ? 'mix-pure-debt' : (mEqPct >= 70 ? 'mix-pure-eq' : 'mix-glide');
+
+            const isMaturityRow = maturedInMonth.length > 0;
+            const trClass = isMaturityRow ? 'row-maturity-fulfilled' : '';
+
+            let statusHtml = `<span style="color: var(--text-tertiary); font-size: 11px;">Glide Month ${m}</span>`;
+            if (isMaturityRow) {
+                statusHtml = maturedInMonth.map(mg => `
+                    <span style="color: #15803d; font-weight: 700; font-size: 11.5px;">
+                        Fulfilled: ${escapeHtml(mg.name)} (100% Debt)
+                    </span>
+                `).join('<br/>');
+            }
+
+            const remM = maxMonths - m;
+            const remLabel = remM === 0 ? '0 mos (Maturity)' : `${remM} mos`;
+            const ageDisplay = (currentAge + m / 12).toFixed(1);
+
+            rowsHtml += `
+                <tr class="${trClass}">
+                    <td><strong>Month ${m}</strong></td>
+                    <td>Age ${ageDisplay}</td>
+                    <td style="color: var(--text-secondary); font-size: 12px;">${remLabel}</td>
+                    <td style="font-weight: 600;">${fmtINR_plain(mOpenBal)}</td>
+                    <td style="background: rgba(16, 185, 129, 0.04);">
+                        <span class="badge-partition-mix ${mixClass}">
+                            ${mDebtPct.toFixed(1)}%
+                        </span>
+                    </td>
+                    <td style="color: #059669; font-weight: 600;">${fmtINR_plain(mDebtBal)}</td>
+                    <td>
+                        <span class="badge-partition-mix ${mixClass}">
+                            ${mEqPct.toFixed(1)}%
+                        </span>
+                    </td>
+                    <td style="color: #4f46e5; font-weight: 600;">${fmtINR_plain(mEqBal)}</td>
+                    <td style="color: #2563eb; font-weight: 600;">+${fmtINR_plain(mGrowth)}</td>
+                    <td style="font-weight: 800; color: var(--brand-navy); font-size: 13px;">${fmtINR_plain(mCloseBal)}</td>
+                    <td>${statusHtml}</td>
+                </tr>
+            `;
+        }
+
+        tbodyEl.innerHTML = rowsHtml;
+
+        if (tfootEl) {
+            tfootEl.innerHTML = `
+                <tr>
+                    <td colspan="3" style="text-align: right; font-weight: 700; color: var(--brand-navy);">Lumpsum Accumulation Total:</td>
+                    <td style="font-weight: 800; color: var(--brand-blue);">${fmtINR_plain(totalInitialPV)} (PV)</td>
+                    <td colspan="4" style="color: #15803d; font-weight: 700; text-align: center;">100% Debt at Specified Goal Ages</td>
+                    <td style="color: #2563eb; font-weight: 800;">+${fmtINR_plain(cumMonthGrowth)} Growth</td>
+                    <td style="font-weight: 800; color: #15803d; font-size: 14px;">${fmtINR_plain(totalTargetFV)}</td>
+                    <td style="font-weight: 800; color: #15803d;">100% Capital Protected</td>
+                </tr>
+            `;
+        }
+    }
 };
 
 window.openGoalScheduleModal = function openGoalScheduleModal(goalId) {
