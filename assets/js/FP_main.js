@@ -1005,11 +1005,18 @@ window.calculateGoalLumpsumGlide = function calculateGoalLumpsumGlide(monthsToGo
 
     // Read current planner parameters
     const initEquity = parseFloat(document.getElementById('inp-init-equity')?.value);
-    const startDebtPct = customOptions.startDebtPct !== undefined 
-        ? customOptions.startDebtPct 
-        : (isNaN(initEquity) ? 20 : Math.max(0, 100 - initEquity)); // Default 20%
-    
-    const monthlyDebtInc = customOptions.monthlyDebtInc !== undefined ? customOptions.monthlyDebtInc : 10; // 10% per month
+    const initEq = customOptions.initEquity !== undefined ? customOptions.initEquity : (isNaN(initEquity) ? 80 : initEquity);
+
+    // Read de-risking window controls from Card 3
+    const cfgGlideStart = parseInt(document.getElementById('inp-glide-start')?.value) || 108;
+    const cfgGlideEnd = parseInt(document.getElementById('inp-glide-end')?.value) || 12;
+
+    const glideStartM = customOptions.glideStartMonth !== undefined ? customOptions.glideStartMonth : cfgGlideStart;
+    const glideEndM = customOptions.glideEndMonth !== undefined ? customOptions.glideEndMonth : cfgGlideEnd;
+
+    // Effective glide window adjusted for this goal's horizon if horizon is shorter than glide start
+    const effGlideStart = Math.min(glideStartM, months);
+    const effGlideEnd = Math.min(glideEndM, Math.max(0, Math.floor(effGlideStart / 4)));
 
     const preIrrVal = parseFloat(document.getElementById('inp-pre-irr')?.value);
     const equityIRR = customOptions.equityIRR !== undefined 
@@ -1021,14 +1028,14 @@ window.calculateGoalLumpsumGlide = function calculateGoalLumpsumGlide(monthsToGo
         ? customOptions.debtIRR 
         : ((isNaN(postIrrVal) ? 7.0 : postIrrVal) / 100);
 
-    const glideStartM = customOptions.glideStartMonth !== undefined ? customOptions.glideStartMonth : 10;
-
     // Cumulative discount calculation: product of (1 + monthly discount) from 1 to months
     let cumulativeFactor = 1.0;
     for (let m = 1; m <= months; m++) {
-        // Debt % = MIN(100%, startDebtPct + monthlyDebtInc * MAX(0, glideStartM - m))
-        const dPct = Math.min(100, Math.max(startDebtPct, startDebtPct + monthlyDebtInc * Math.max(0, glideStartM - m)));
-        const ePct = 100 - dPct;
+        // mLeft is months from goal achievement: for discounting month m, mLeft = months - m
+        const mLeft = months - m;
+        const alloc = calcGlideAllocation(mLeft, initEq, effGlideStart, effGlideEnd);
+        const dPct = alloc.debtPct;
+        const ePct = alloc.equityPct;
         const annualReturn = (dPct / 100) * debtIRR + (ePct / 100) * equityIRR;
         const monthlyRate = annualReturn / 12;
         cumulativeFactor *= (1 + monthlyRate);
@@ -1036,9 +1043,10 @@ window.calculateGoalLumpsumGlide = function calculateGoalLumpsumGlide(monthsToGo
 
     const pv = cumulativeFactor > 0 ? (targetAmt / cumulativeFactor) : targetAmt;
 
-    // Today's asset allocation (based on monthsToGoal remaining from today)
-    const currentDebtPct = Math.min(100, Math.max(startDebtPct, startDebtPct + monthlyDebtInc * Math.max(0, glideStartM - months)));
-    const currentEquityPct = 100 - currentDebtPct;
+    // Today's asset allocation (based on months remaining today)
+    const todayAlloc = calcGlideAllocation(months, initEq, effGlideStart, effGlideEnd);
+    const currentDebtPct = todayAlloc.debtPct;
+    const currentEquityPct = todayAlloc.equityPct;
     const debtValue = pv * (currentDebtPct / 100);
     const equityValue = pv * (currentEquityPct / 100);
     const currentAnnualReturn = (currentDebtPct / 100) * debtIRR + (currentEquityPct / 100) * equityIRR;
@@ -1054,7 +1062,9 @@ window.calculateGoalLumpsumGlide = function calculateGoalLumpsumGlide(monthsToGo
         equityValue,
         annualReturn: currentAnnualReturn,
         monthlyRate: currentMonthlyRate,
-        cumulativeFactor
+        cumulativeFactor,
+        glideStartM: effGlideStart,
+        glideEndM: effGlideEnd
     };
 };
 
@@ -1331,13 +1341,13 @@ window.renderAssetAccumulationTable = function renderAssetAccumulationTable() {
 
     // Planner parameters
     const initEquity = parseFloat(document.getElementById('inp-init-equity')?.value);
-    const startDebtPct = isNaN(initEquity) ? 20 : Math.max(0, 100 - initEquity);
-    const monthlyDebtInc = 10;
+    const initEq = isNaN(initEquity) ? 80 : initEquity;
+    const cfgGlideStart = parseInt(document.getElementById('inp-glide-start')?.value) || 108;
+    const cfgGlideEnd = parseInt(document.getElementById('inp-glide-end')?.value) || 12;
     const preIrrVal = parseFloat(document.getElementById('inp-pre-irr')?.value);
     const equityIRR = (isNaN(preIrrVal) ? 12.0 : preIrrVal) / 100;
     const postIrrVal = parseFloat(document.getElementById('inp-post-irr')?.value);
     const debtIRR = (isNaN(postIrrVal) ? 7.0 : postIrrVal) / 100;
-    const glideStartM = 10;
 
     // 1. Populate / sync goal selector dropdown
     if (selGoal) {
@@ -1373,13 +1383,17 @@ window.renderAssetAccumulationTable = function renderAssetAccumulationTable() {
         const lump = window.calculateGoalLumpsumGlide(months, inflatedFV);
         const initialPV = lump.pv;
 
+        const effGlideStart = Math.min(cfgGlideStart, months);
+        const effGlideEnd = Math.min(cfgGlideEnd, Math.max(0, Math.floor(effGlideStart / 4)));
+
         let curBal = initialPV;
         const monthsList = [];
 
         for (let m = 1; m <= months; m++) {
-            const remMonths = months - (m - 1);
-            const dPct = Math.min(100, Math.max(startDebtPct, startDebtPct + monthlyDebtInc * Math.max(0, glideStartM - remMonths)));
-            const ePct = 100 - dPct;
+            const remMonths = months - m; // 0 at maturity month
+            const alloc = calcGlideAllocation(remMonths, initEq, effGlideStart, effGlideEnd);
+            const dPct = alloc.debtPct;
+            const ePct = alloc.equityPct;
             const annualReturn = (dPct / 100) * debtIRR + (ePct / 100) * equityIRR;
             const monthlyRate = annualReturn / 12;
 
@@ -1392,7 +1406,7 @@ window.renderAssetAccumulationTable = function renderAssetAccumulationTable() {
 
             monthsList.push({
                 month: m,
-                remMonths: remMonths - 1,
+                remMonths: remMonths,
                 age: (currentAge + m / 12).toFixed(1),
                 year: currentYear + Math.floor(m / 12),
                 openBal,
@@ -1735,19 +1749,22 @@ window.openGoalScheduleModal = function openGoalScheduleModal(goalId) {
     const inflatedGoalAmount = pvAmount * Math.pow(1 + inf, months / 12);
 
     const initEquity = parseFloat(document.getElementById('inp-init-equity')?.value);
-    const startDebtPct = isNaN(initEquity) ? 20 : Math.max(0, 100 - initEquity);
-    const monthlyDebtInc = 10;
+    const initEq = isNaN(initEquity) ? 80 : initEquity;
+    const cfgGlideStart = parseInt(document.getElementById('inp-glide-start')?.value) || 108;
+    const cfgGlideEnd = parseInt(document.getElementById('inp-glide-end')?.value) || 12;
+    const effGlideStart = Math.min(cfgGlideStart, months);
+    const effGlideEnd = Math.min(cfgGlideEnd, Math.max(0, Math.floor(effGlideStart / 4)));
+
     const preIrrVal = parseFloat(document.getElementById('inp-pre-irr')?.value);
     const equityIRR = (isNaN(preIrrVal) ? 12.0 : preIrrVal) / 100;
     const postIrrVal = parseFloat(document.getElementById('inp-post-irr')?.value);
     const debtIRR = (isNaN(postIrrVal) ? 7.0 : postIrrVal) / 100;
-    const glideStartM = 10;
 
     // Set modal headers
     const titleEl = modal.querySelector('.fp-modal-title');
     const subTitleEl = document.getElementById('modal-ret-schedule-subtitle');
     if (titleEl) titleEl.innerText = `Goal Glide Schedule: ${goal.name || 'Life Milestone'}`;
-    if (subTitleEl) subTitleEl.innerHTML = `When goal is about to be achieved at specified Target Age ${targetAge}, the partition is <strong>100% Debt and 0% Equity</strong>. Below is the exact month-by-month de-risking progression.`;
+    if (subTitleEl) subTitleEl.innerHTML = `Systematic de-risking across <strong>${effGlideStart} months (${(effGlideStart / 12).toFixed(1)} Yrs)</strong>, reaching <strong>100% Debt and 0% Equity</strong> at target age ${targetAge}.`;
 
     const tbody = document.getElementById('ret-schedule-tbody');
     const thead = modal.querySelector('table thead');
@@ -1797,8 +1814,10 @@ window.openGoalScheduleModal = function openGoalScheduleModal(goalId) {
     });
 
     for (let m = 1; m <= months; m++) {
-        const dPct = Math.min(100, Math.max(startDebtPct, startDebtPct + monthlyDebtInc * Math.max(0, glideStartM - m)));
-        const ePct = 100 - dPct;
+        // m is months before goal achievement
+        const alloc = calcGlideAllocation(m, initEq, effGlideStart, effGlideEnd);
+        const dPct = alloc.debtPct;
+        const ePct = alloc.equityPct;
         const annualReturn = (dPct / 100) * debtIRR + (ePct / 100) * equityIRR;
         const monthlyRate = annualReturn / 12;
         cumFactor *= (1 + monthlyRate);
