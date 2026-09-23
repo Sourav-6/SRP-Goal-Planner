@@ -18,10 +18,10 @@ const server = app.listen(PORT, () => {
     const engine = isSupabaseConfigured() ? 'Supabase Cloud (PostgreSQL)' : 'Local SQLite (better-sqlite3)';
 
     console.log(`\n=============================================================`);
-    console.log(`🚀 SRP Prime Wealth Financial Freedom Planner & Advisor Engine`);
-    console.log(`📡 Local Server running at: http://localhost:${PORT}`);
-    console.log(`💾 Database Engine: ${engine}`);
-    console.log(`🔑 Default Advisor Phone: 9999999999 | PIN: 7777`);
+    console.log(`[SRP] Prime Wealth Financial Freedom Planner & Advisor Engine`);
+    console.log(`[HTTP] Local Server running at: http://localhost:${PORT}`);
+    console.log(`[DB] Database Engine: ${engine}`);
+    console.log(`[AUTH] Default Advisor Phone: 9999999999 | PIN: 7777`);
     console.log(`=============================================================\n`);
 });
 
