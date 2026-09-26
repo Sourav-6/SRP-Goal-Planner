@@ -38,16 +38,5 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Serve static frontend assets
-app.use(express.static(path.join(__dirname)));
-
-// SPA Fallback: serve index.html for any non-API routes
-app.use((req, res) => {
-    if (req.path.startsWith('/api')) {
-        return res.status(404).json({ error: 'Endpoint not found' });
-    }
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
 module.exports = app;
 
