@@ -805,6 +805,9 @@ window.populatePlanToUI = function (plan, milestones) {
 
     const hdrPlanName = document.getElementById('hdr-plan-name');
     if (hdrPlanName) hdrPlanName.innerText = plan.plan_name;
+    const activePlanTitle = document.getElementById('active-plan-title');
+    if (activePlanTitle) activePlanTitle.innerText = plan.plan_name;
+    if (typeof window.refreshPlansCount === 'function') window.refreshPlansCount();
 
     window.setControlVal('inp-age', plan.current_age || 0);
     window.setControlVal('inp-ret-age', plan.retirement_age || 0);
@@ -949,16 +952,16 @@ window.handleFirstTimePlanSubmit = async function handleFirstTimePlanSubmit() {
 
 window.manualSaveCurrentPlan = async function manualSaveCurrentPlan() {
     if (!window.fpAuth.token || !window.fpAuth.activePlanId) {
-        alert('Please log in to save your plan.');
+        alert('Please log in or register to save your plan.');
         return;
     }
 
     const saveBtn = document.getElementById('btn-save-plan');
+    const pmSaveBtn = document.getElementById('btn-pm-save');
     const origHtml = saveBtn ? saveBtn.innerHTML : '';
-    if (saveBtn) {
-        saveBtn.innerHTML = 'Saving...';
-        saveBtn.disabled = true;
-    }
+    const origPmHtml = pmSaveBtn ? pmSaveBtn.innerHTML : '';
+    if (saveBtn) { saveBtn.innerHTML = 'Saving...'; saveBtn.disabled = true; }
+    if (pmSaveBtn) { pmSaveBtn.innerHTML = 'Saving...'; pmSaveBtn.disabled = true; }
 
     const pill = document.getElementById('save-status-pill');
     const pillText = document.getElementById('save-status-text');
@@ -974,12 +977,17 @@ window.manualSaveCurrentPlan = async function manualSaveCurrentPlan() {
             pill.classList.remove('syncing');
             if (pillText) pillText.innerText = 'Saved';
         }
-        if (saveBtn) {
-            saveBtn.innerHTML = '✓ Plan Saved';
-            setTimeout(() => {
-                saveBtn.innerHTML = origHtml;
-                saveBtn.disabled = false;
-            }, 1800);
+        if (saveBtn) saveBtn.innerHTML = '✓ Plan Saved';
+        if (pmSaveBtn) pmSaveBtn.innerHTML = '✓ Saved';
+        if (typeof window.showPlanToast === 'function') {
+            window.showPlanToast(`Plan "${window.fpAuth.activePlanName || 'My Life Plan'}" saved successfully!`);
+        }
+        setTimeout(() => {
+            if (saveBtn) { saveBtn.innerHTML = origHtml; saveBtn.disabled = false; }
+            if (pmSaveBtn) { pmSaveBtn.innerHTML = origPmHtml; pmSaveBtn.disabled = false; }
+        }, 1800);
+        if (typeof window.refreshPlansCount === 'function') {
+            await window.refreshPlansCount();
         }
     } catch (err) {
         console.error('Manual save error:', err);
@@ -988,10 +996,8 @@ window.manualSaveCurrentPlan = async function manualSaveCurrentPlan() {
             pill.classList.remove('syncing');
             if (pillText) pillText.innerText = 'Offline';
         }
-        if (saveBtn) {
-            saveBtn.innerHTML = origHtml;
-            saveBtn.disabled = false;
-        }
+        if (saveBtn) { saveBtn.innerHTML = origHtml; saveBtn.disabled = false; }
+        if (pmSaveBtn) { pmSaveBtn.innerHTML = origPmHtml; pmSaveBtn.disabled = false; }
     }
 };
 
@@ -2575,6 +2581,84 @@ window.handleUserLogout = function (confirmPrompt = true) {
     if (banner) banner.style.display = 'none';
 };
 
+// ==========================================================================
+// TOAST NOTIFICATION UTILITY
+// ==========================================================================
+window.showPlanToast = function (msg, type = 'success') {
+    let container = document.getElementById('fp-toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'fp-toast-container';
+        container.className = 'fp-toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `fp-toast ${type}`;
+    toast.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span>${escapeHtml(msg)}</span>
+    `;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-10px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3200);
+};
+
+window.refreshPlansCount = async function () {
+    if (!window.fpAuth.token) return;
+    try {
+        const res = await window.fpApi('/api/plans');
+        const count = (res.plans || []).length;
+        const countBadge = document.getElementById('fp-pm-plans-count');
+        if (countBadge) countBadge.innerText = count.toString();
+    } catch (e) {
+        // silent fail
+    }
+};
+
+window.promptRenameCurrentPlan = async function () {
+    if (!window.fpAuth.token || !window.fpAuth.activePlanId) return;
+    const currentName = window.fpAuth.activePlanName || 'My Freedom Plan';
+    const newName = prompt('Enter a new name for your active plan:', currentName);
+    if (!newName || !newName.trim() || newName.trim() === currentName) return;
+
+    try {
+        await window.fpApi(`/api/plans/${window.fpAuth.activePlanId}/rename`, 'PUT', { plan_name: newName.trim() });
+        window.fpAuth.activePlanName = newName.trim();
+        const hdrPlanName = document.getElementById('hdr-plan-name');
+        if (hdrPlanName) hdrPlanName.innerText = newName.trim();
+        const activePlanTitle = document.getElementById('active-plan-title');
+        if (activePlanTitle) activePlanTitle.innerText = newName.trim();
+        window.showPlanToast(`Plan renamed to "${newName.trim()}"`);
+    } catch (err) {
+        alert('Failed to rename plan: ' + err.message);
+    }
+};
+
+window.renamePlanScenario = async function (planId, currentName) {
+    const newName = prompt(`Enter a new name for "${currentName}":`, currentName);
+    if (!newName || !newName.trim() || newName.trim() === currentName) return;
+
+    try {
+        await window.fpApi(`/api/plans/${planId}/rename`, 'PUT', { plan_name: newName.trim() });
+        if (planId === window.fpAuth.activePlanId) {
+            window.fpAuth.activePlanName = newName.trim();
+            const hdrPlanName = document.getElementById('hdr-plan-name');
+            if (hdrPlanName) hdrPlanName.innerText = newName.trim();
+            const activePlanTitle = document.getElementById('active-plan-title');
+            if (activePlanTitle) activePlanTitle.innerText = newName.trim();
+        }
+        await window.renderPlanCardsList();
+        window.showPlanToast(`Plan renamed to "${newName.trim()}"`);
+    } catch (err) {
+        alert('Failed to rename plan: ' + err.message);
+    }
+};
+
 // PLAN MANAGER (SCENARIO SWITCHER & BUILDER)
 window.openPlanManagerModal = async function () {
     const modal = document.getElementById('modal-plan-manager');
@@ -2589,17 +2673,40 @@ window.closePlanManagerModal = function () {
     if (modal) modal.style.display = 'none';
 };
 
-window.toggleNewPlanInput = function (show) {
+window.toggleNewPlanInput = function (show, mode = 'blank') {
     const el = document.getElementById('new-plan-input-wrap');
     if (el) el.style.display = show ? 'block' : 'none';
     if (show) {
         const inp = document.getElementById('inp-new-plan-name');
-        if (inp) { inp.value = ''; inp.focus(); }
+        const lbl = document.getElementById('lbl-new-plan-mode');
+        const btn = document.getElementById('btn-submit-new-plan');
+        el.dataset.planMode = mode;
+        if (mode === 'save_current') {
+            if (lbl) lbl.innerText = 'Save Current Inputs as New Plan';
+            if (btn) btn.innerText = 'Save & Load Plan';
+            if (inp) {
+                const base = window.fpAuth.activePlanName || 'My Life Plan';
+                inp.value = `${base} (Scenario 2)`;
+                inp.focus();
+                inp.select();
+            }
+        } else {
+            if (lbl) lbl.innerText = 'Create Fresh Blank Scenario';
+            if (btn) btn.innerText = 'Create & Load Plan';
+            if (inp) { inp.value = ''; inp.focus(); }
+        }
     }
+};
+
+window.promptSaveAsNewPlan = function () {
+    window.openPlanManagerModal();
+    window.toggleNewPlanInput(true, 'save_current');
 };
 
 window.submitCreateNewPlan = async function () {
     const inp = document.getElementById('inp-new-plan-name');
+    const wrap = document.getElementById('new-plan-input-wrap');
+    const mode = wrap?.dataset?.planMode || 'blank';
     const name = inp ? inp.value.trim() : '';
     if (!name) {
         alert('Please enter a name for this plan scenario.');
@@ -2607,13 +2714,29 @@ window.submitCreateNewPlan = async function () {
     }
 
     try {
-        const res = await window.fpApi('/api/plans/new', 'POST', {
-            plan_name: name,
-            clone_from_id: window.fpAuth.activePlanId
-        });
-        const planRes = await window.fpApi(`/api/plans/${res.planId}`);
-        window.populatePlanToUI(planRes.plan, planRes.milestones);
-        window.closePlanManagerModal();
+        if (mode === 'save_current') {
+            const res = await window.fpApi('/api/plans/new', 'POST', {
+                plan_name: name,
+                clone_from_id: window.fpAuth.activePlanId
+            });
+            const payload = collectPlanPayloadFromUI();
+            payload.plan.plan_name = name;
+            await window.fpApi(`/api/plans/${res.planId}`, 'PUT', payload);
+            await window.fpApi(`/api/plans/${res.planId}/activate`, 'PUT');
+            const planRes = await window.fpApi(`/api/plans/${res.planId}`);
+            window.populatePlanToUI(planRes.plan, planRes.milestones);
+            window.closePlanManagerModal();
+            window.showPlanToast(`Saved and loaded new plan "${name}"!`);
+        } else {
+            const res = await window.fpApi('/api/plans/new', 'POST', {
+                plan_name: name
+            });
+            await window.fpApi(`/api/plans/${res.planId}/activate`, 'PUT');
+            const planRes = await window.fpApi(`/api/plans/${res.planId}`);
+            window.populatePlanToUI(planRes.plan, planRes.milestones);
+            window.closePlanManagerModal();
+            window.showPlanToast(`Created and loaded fresh plan "${name}"!`);
+        }
     } catch (err) {
         alert('Failed to create plan: ' + err.message);
     }
@@ -2630,6 +2753,21 @@ window.duplicateCurrentPlan = async function () {
         const planRes = await window.fpApi(`/api/plans/${res.planId}`);
         window.populatePlanToUI(planRes.plan, planRes.milestones);
         window.closePlanManagerModal();
+        window.showPlanToast(`Duplicated and loaded plan "${newName}"!`);
+    } catch (err) {
+        alert('Failed to duplicate plan: ' + err.message);
+    }
+};
+
+window.duplicatePlanScenario = async function (planId) {
+    try {
+        const res = await window.fpApi('/api/plans/new', 'POST', {
+            plan_name: `Plan Copy`,
+            clone_from_id: planId
+        });
+        await window.renderPlanCardsList();
+        await window.refreshPlansCount();
+        window.showPlanToast(`Duplicated plan scenario!`);
     } catch (err) {
         alert('Failed to duplicate plan: ' + err.message);
     }
@@ -2643,6 +2781,9 @@ window.renderPlanCardsList = async function () {
     try {
         const res = await window.fpApi('/api/plans');
         const plans = res.plans || [];
+        const countBadge = document.getElementById('fp-pm-plans-count');
+        if (countBadge) countBadge.innerText = plans.length.toString();
+
         if (plans.length === 0) {
             container.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">No saved plans found.</div>';
             return;
@@ -2660,11 +2801,18 @@ window.renderPlanCardsList = async function () {
                             ${isActive ? '<span class="plan-active-badge">Active</span>' : ''}
                         </div>
                         <div class="plan-item-meta">
-                            Age ${p.current_age} &rarr; ${p.retirement_age} | SIP: ₹${parseInt(p.initial_sip).toLocaleString('en-IN')}/mo | Updated: ${updatedDate}
+                            Age ${p.current_age} &rarr; ${p.retirement_age} | SIP: ₹${parseInt(p.initial_sip || 0).toLocaleString('en-IN')}/mo | Corpus: ₹${parseInt(p.initial_corpus || 0).toLocaleString('en-IN')} | Updated: ${updatedDate}
                         </div>
                     </div>
                     <div class="plan-item-actions">
-                        ${!isActive ? `<button type="button" class="fp-btn-secondary" style="padding:5px 10px; font-size:12px;" onclick="window.switchActivePlan('${p.id}')">Open</button>` : '<span style="font-size:12px; color:#059669; font-weight:600; padding:5px 10px;">Loaded</span>'}
+                        <button type="button" class="fp-btn-rename-plan" onclick="window.renamePlanScenario('${p.id}', '${escapeHtml(p.plan_name)}')" title="Rename Plan">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                            Rename
+                        </button>
+                        <button type="button" class="fp-btn-secondary" style="padding:5px 10px; font-size:12px;" onclick="window.duplicatePlanScenario('${p.id}')" title="Duplicate Plan">
+                            Copy
+                        </button>
+                        ${!isActive ? `<button type="button" class="fp-btn-primary" style="padding:6px 14px; font-size:12.5px; font-weight:700;" onclick="window.switchActivePlan('${p.id}')">Load Plan</button>` : '<span class="fp-loaded-tag">Loaded</span>'}
                         ${plans.length > 1 && !isActive ? `<button type="button" class="ev-del-btn" onclick="window.deletePlanScenario('${p.id}')" title="Delete Plan">&#10005;</button>` : ''}
                     </div>
                 </div>
@@ -2682,6 +2830,7 @@ window.switchActivePlan = async function (planId) {
         const planRes = await window.fpApi(`/api/plans/${planId}`);
         window.populatePlanToUI(planRes.plan, planRes.milestones);
         window.closePlanManagerModal();
+        window.showPlanToast(`Loaded plan "${planRes.plan.plan_name}"!`);
     } catch (err) {
         alert('Failed to switch plan: ' + err.message);
     }
@@ -2692,6 +2841,8 @@ window.deletePlanScenario = async function (planId) {
     try {
         await window.fpApi(`/api/plans/${planId}`, 'DELETE');
         await window.renderPlanCardsList();
+        await window.refreshPlansCount();
+        window.showPlanToast(`Plan deleted successfully.`);
     } catch (err) {
         alert('Delete failed: ' + err.message);
     }

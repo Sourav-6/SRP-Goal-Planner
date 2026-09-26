@@ -524,6 +524,20 @@ const dbService = {
         return { planId: newPlanId, planName: name };
     },
 
+    async renamePlan(planId, userId, newName) {
+        const now = new Date().toISOString();
+        if (isSupabaseConfigured()) {
+            const supabase = getSupabaseClient();
+            const { error } = await supabase.from('plans').update({ plan_name: newName, updated_at: now }).eq('id', planId).eq('user_id', userId);
+            if (error) throw new Error(error.message);
+            return true;
+        }
+
+        const db = getSqlite();
+        db.prepare('UPDATE plans SET plan_name = ?, updated_at = ? WHERE id = ? AND user_id = ?').run(newName, now, planId, userId);
+        return true;
+    },
+
     async savePlan(planId, userId, planData, milestones, snapshot) {
         const now = new Date().toISOString();
 

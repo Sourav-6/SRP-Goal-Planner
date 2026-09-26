@@ -1761,6 +1761,244 @@ input[type="range"].fp-slider::-moz-range-thumb {
 .plan-item-actions {
     display: flex;
     gap: 8px;
+    align-items: center;
+}
+
+/* ==========================================================================
+   TOP PLAN MANAGER BAR & ACTIONS
+   ========================================================================== */
+.fp-plan-manager-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1.5px solid #e2e8f0;
+    border-radius: var(--radius-md);
+    padding: 12px 18px;
+    margin-bottom: 22px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    flex-wrap: wrap;
+}
+
+.fp-pm-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.fp-pm-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 102, 204, 0.08);
+    color: var(--brand-blue);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.fp-pm-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fp-pm-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--brand-navy);
+    letter-spacing: -0.2px;
+}
+
+.fp-pm-icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.fp-pm-icon-btn:hover {
+    color: var(--brand-blue);
+    background: rgba(0, 102, 204, 0.08);
+}
+
+.fp-pm-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.fp-pm-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    white-space: nowrap;
+}
+
+.fp-pm-btn-save {
+    background: #059669;
+    color: #ffffff;
+    box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);
+}
+
+.fp-pm-btn-save:hover {
+    background: #047857;
+    transform: translateY(-1px);
+}
+
+.fp-pm-btn-saveas {
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    color: var(--brand-navy);
+}
+
+.fp-pm-btn-saveas:hover {
+    border-color: var(--brand-blue);
+    color: var(--brand-blue);
+    background: #f8fafc;
+}
+
+.fp-pm-btn-load {
+    background: var(--brand-navy);
+    color: #ffffff;
+    box-shadow: 0 2px 4px rgba(10, 25, 47, 0.2);
+}
+
+.fp-pm-btn-load:hover {
+    background: #1e293b;
+    transform: translateY(-1px);
+}
+
+.fp-pm-count-badge {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 1px 7px;
+    border-radius: 10px;
+    margin-left: 2px;
+}
+
+.fp-btn-load-sticky {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    color: var(--brand-navy);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.fp-btn-load-sticky:hover {
+    border-color: var(--brand-navy);
+    background: #f8fafc;
+}
+
+.fp-btn-rename-plan {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: var(--brand-navy);
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.fp-btn-rename-plan:hover {
+    background: #e2e8f0;
+    color: var(--brand-blue);
+}
+
+.fp-loaded-tag {
+    font-size: 12px;
+    color: #059669;
+    font-weight: 700;
+    padding: 5px 10px;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: 6px;
+}
+
+/* Toast Notifications */
+.fp-toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.fp-toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #0f172a;
+    color: #ffffff;
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    pointer-events: auto;
+    animation: toastSlideIn 0.3s ease forwards;
+    transition: all 0.3s ease;
+}
+
+.fp-toast.success {
+    border-left: 4px solid #10b981;
+}
+
+.fp-toast.info {
+    border-left: 4px solid #3b82f6;
+}
+
+.fp-toast.error {
+    border-left: 4px solid #ef4444;
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-16px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 /* ==========================================================================
@@ -1914,7 +2152,42 @@ input[type="range"].fp-slider::-moz-range-thumb {
 
 @media (max-width: 768px) {
     .fp-user-bar {
+        display: flex !important;
+        gap: 5px;
+        margin-right: 4px;
+    }
+    .fp-plan-chip {
+        max-width: 120px;
+        font-size: 11px;
+        padding: 4px 8px;
+    }
+    .fp-sync-pill {
         display: none !important;
+    }
+    .fp-user-profile-badge {
+        padding: 2px 4px;
+    }
+    .fp-user-name {
+        display: none;
+    }
+    .fp-plan-manager-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 12px;
+        gap: 10px;
+    }
+    .fp-pm-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    .fp-pm-btn-load {
+        grid-column: span 2;
+        justify-content: center;
+    }
+    .fp-pm-btn-save, .fp-pm-btn-saveas {
+        justify-content: center;
     }
     .advisor-metrics-grid {
         grid-template-columns: 1fr 1fr;

@@ -97,7 +97,22 @@ router.put('/:id/activate', async (req, res) => {
     }
 });
 
-// 7. DELETE A PLAN (must keep at least 1)
+// 7. RENAME A PLAN
+router.put('/:id/rename', async (req, res) => {
+    try {
+        const planId = req.params.id;
+        const { plan_name } = req.body;
+        if (!plan_name || !plan_name.trim()) {
+            return res.status(400).json({ error: 'Plan name is required.' });
+        }
+        await dbService.renamePlan(planId, req.user.id, plan_name.trim());
+        return res.json({ success: true, planName: plan_name.trim() });
+    } catch (err) {
+        return res.status(500).json({ error: 'Failed to rename plan: ' + err.message });
+    }
+});
+
+// 8. DELETE A PLAN (must keep at least 1)
 router.delete('/:id', async (req, res) => {
     try {
         const planId = req.params.id;

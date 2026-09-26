@@ -224,6 +224,37 @@
             <div class="fp-planner-wrapper">
                 <div class="fp-cards-container">
 
+                    <!-- TOP PLAN MANAGEMENT BAR -->
+                    <div class="fp-plan-manager-bar" id="fp-plan-manager-bar">
+                        <div class="fp-pm-info">
+                            <div class="fp-pm-tag">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                                <span>Active Plan</span>
+                            </div>
+                            <div class="fp-pm-name-row">
+                                <span id="active-plan-title" class="fp-pm-title">My Freedom Plan</span>
+                                <button type="button" class="fp-pm-icon-btn" onclick="promptRenameCurrentPlan()" title="Rename this Plan">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="fp-pm-actions">
+                            <button type="button" class="fp-pm-btn fp-pm-btn-save" id="btn-pm-save" onclick="manualSaveCurrentPlan()" title="Save current changes to this plan">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                <span>Save Plan</span>
+                            </button>
+                            <button type="button" class="fp-pm-btn fp-pm-btn-saveas" onclick="promptSaveAsNewPlan()" title="Save current inputs as a new plan scenario">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                                <span>Save As New</span>
+                            </button>
+                            <button type="button" class="fp-pm-btn fp-pm-btn-load" onclick="openPlanManagerModal()" title="View and switch between all your saved plans">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4M17 9l-5 5-5-5M12 12.8V2.5"/></svg>
+                                <span>Load / Manage Plans</span>
+                                <span id="fp-pm-plans-count" class="fp-pm-count-badge">1</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- CARD 1: PROFILE -->
                     <section class="fp-card" id="card-profile">
                         <div class="fp-card-header">
@@ -838,10 +869,14 @@
                     </button>
 
                     <!-- NORMAL ACTIONS (POST-SUBMIT / SAVED PLAN) -->
-                    <div id="btn-group-normal-actions" style="display: none; width: 100%; gap: 12px; align-items: center;">
-                        <button type="button" id="btn-save-plan" class="fp-btn-save-plan" onclick="manualSaveCurrentPlan()">
+                    <div id="btn-group-normal-actions" style="display: none; width: 100%; gap: 10px; align-items: center;">
+                        <button type="button" id="btn-save-plan" class="fp-btn-save-plan" onclick="manualSaveCurrentPlan()" title="Save current changes">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                             Save Plan
+                        </button>
+                        <button type="button" id="btn-load-plan-sticky" class="fp-btn-load-sticky" onclick="openPlanManagerModal()" title="Load and switch saved plans">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4M17 9l-5 5-5-5M12 12.8V2.5"/></svg>
+                            Load Plan
                         </button>
                         <button type="button" id="btn-view-report" class="fp-btn-primary fp-btn-sticky" style="flex: 1;" onclick="generateFreedomReport()">
                             View Detailed Cash Flow Projection
@@ -944,7 +979,7 @@
             <div class="fp-modal-header">
                 <div>
                     <h3 class="fp-modal-title">My Financial Life Plans</h3>
-                    <p class="fp-modal-subtitle">Switch scenarios, compare early retirement models, or create a new life plan.</p>
+                    <p class="fp-modal-subtitle">Save, load, compare, and manage your different financial life scenarios.</p>
                 </div>
                 <button type="button" class="fp-modal-close" onclick="closePlanManagerModal()">&times;</button>
             </div>
@@ -952,25 +987,25 @@
             <div class="fp-modal-body">
                 <!-- Action Bar -->
                 <div class="fp-plan-actions-bar">
-                    <button type="button" class="fp-btn-secondary" onclick="toggleNewPlanInput(true)">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                        New Scenario Plan
+                    <button type="button" class="fp-btn-primary" style="padding: 8px 14px; font-size: 13px;" onclick="promptSaveAsNewPlan()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                        Save Current as New Plan
                     </button>
-                    <button type="button" class="fp-btn-secondary" onclick="duplicateCurrentPlan()">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                        Duplicate Active Plan
+                    <button type="button" class="fp-btn-secondary" style="padding: 8px 14px; font-size: 13px;" onclick="toggleNewPlanInput(true, 'blank')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Create Fresh Blank Scenario
                     </button>
                 </div>
 
                 <!-- New Plan Input Wrap -->
                 <div id="new-plan-input-wrap" class="new-plan-input-wrap" style="display: none;">
                     <div class="fp-input-group" style="margin-bottom: 8px;">
-                        <label for="inp-new-plan-name">Plan Scenario Name</label>
-                        <input type="text" id="inp-new-plan-name" placeholder="E.g. Early Freedom @ 50, Aggressive Equity, etc." />
+                        <label for="inp-new-plan-name" id="lbl-new-plan-mode">Plan Scenario Name</label>
+                        <input type="text" id="inp-new-plan-name" placeholder="E.g. Early Freedom @ 50, House Goal Plan, etc." />
                     </div>
                     <div style="display: flex; gap: 8px; justify-content: flex-end;">
                         <button type="button" class="fp-chip" onclick="toggleNewPlanInput(false)">Cancel</button>
-                        <button type="button" class="fp-btn-primary" style="padding: 6px 14px; font-size: 13px;" onclick="submitCreateNewPlan()">Create & Open Plan</button>
+                        <button type="button" class="fp-btn-primary" style="padding: 6px 14px; font-size: 13px;" id="btn-submit-new-plan" onclick="submitCreateNewPlan()">Create & Load Plan</button>
                     </div>
                 </div>
 
@@ -1290,6 +1325,8 @@
             });
         }
     </script>
+    <!-- FLOATING TOAST NOTIFICATION CONTAINER -->
+    <div id="fp-toast-container" class="fp-toast-container"></div>
 </body>
 
 </html>
