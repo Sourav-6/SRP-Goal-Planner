@@ -2451,24 +2451,22 @@ window.renderGoalsSummaryTable = function renderGoalsSummaryTable() {
     }
 };
 
-// TAB SWITCHING (SIGN IN / REGISTER)
+// TAB SWITCHING (SIGN IN / REGISTER / ADVISOR)
 window.switchAuthTab = function (tab) {
     const btnLogin = document.getElementById('tab-btn-login');
     const btnReg = document.getElementById('tab-btn-register');
+    const btnAdv = document.getElementById('tab-btn-advisor');
     const formLogin = document.getElementById('form-client-login');
     const formReg = document.getElementById('form-client-register');
+    const formAdv = document.getElementById('form-client-advisor');
 
-    if (tab === 'login') {
-        if (btnLogin) btnLogin.classList.add('active');
-        if (btnReg) btnReg.classList.remove('active');
-        if (formLogin) formLogin.style.display = 'block';
-        if (formReg) formReg.style.display = 'none';
-    } else {
-        if (btnLogin) btnLogin.classList.remove('active');
-        if (btnReg) btnReg.classList.add('active');
-        if (formLogin) formLogin.style.display = 'none';
-        if (formReg) formReg.style.display = 'block';
-    }
+    if (btnLogin) btnLogin.classList.toggle('active', tab === 'login');
+    if (btnReg) btnReg.classList.toggle('active', tab === 'register');
+    if (btnAdv) btnAdv.classList.toggle('active', tab === 'advisor');
+
+    if (formLogin) formLogin.style.display = (tab === 'login') ? 'block' : 'none';
+    if (formReg) formReg.style.display = (tab === 'register') ? 'block' : 'none';
+    if (formAdv) formAdv.style.display = (tab === 'advisor') ? 'block' : 'none';
 };
 
 window.handleClientLoginSubmit = async function (e) {
@@ -2555,6 +2553,12 @@ function revealPlannerUI(user) {
         userNameEl.innerText = user.name ? user.name.split(' ')[0] : 'Client';
     }
 
+    // Only authorized advisors see Advisor Desk in header; regular clients never see it
+    const advHdrBtn = document.getElementById('btn-hdr-advisor');
+    if (advHdrBtn) {
+        advHdrBtn.style.display = (user && user.role === 'advisor') ? 'inline-flex' : 'none';
+    }
+
     window.scrollTo(0, 0);
 }
 
@@ -2573,6 +2577,9 @@ window.handleUserLogout = function (confirmPrompt = true) {
 
     const userBar = document.getElementById('fp-user-bar');
     if (userBar) userBar.style.display = 'none';
+
+    const advHdrBtn = document.getElementById('btn-hdr-advisor');
+    if (advHdrBtn) advHdrBtn.style.display = 'none';
 
     window.closeAdvisorDeskModal();
     window.closePlanManagerModal();
@@ -2867,12 +2874,16 @@ window.closeAdvisorLoginModal = function () {
     if (m) m.style.display = 'none';
 };
 
-window.handleAdvisorLoginSubmit = async function (e) {
+window.handleAdvisorLoginSubmit = async function (e, source = 'modal') {
     e.preventDefault();
-    const phone = document.getElementById('adv-phone').value.trim();
-    const pin = document.getElementById('adv-pin').value.trim();
-    const errEl = document.getElementById('adv-error-msg');
-    const submitBtn = document.getElementById('btn-adv-login');
+    const isCard = source === 'card';
+    const phoneInput = document.getElementById(isCard ? 'adv-card-phone' : 'adv-phone');
+    const pinInput = document.getElementById(isCard ? 'adv-card-pin' : 'adv-pin');
+    const errEl = document.getElementById(isCard ? 'adv-card-error-msg' : 'adv-error-msg');
+    const submitBtn = document.getElementById(isCard ? 'btn-adv-card-submit' : 'btn-adv-login');
+
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+    const pin = pinInput ? pinInput.value.trim() : '';
 
     if (errEl) errEl.style.display = 'none';
     if (submitBtn) { submitBtn.innerText = 'Authenticating...'; submitBtn.disabled = true; }
@@ -2889,6 +2900,11 @@ window.handleAdvisorLoginSubmit = async function (e) {
         localStorage.setItem('fp_user', JSON.stringify(res.user));
 
         window.closeAdvisorLoginModal();
+
+        // Enable advisor desk button for this advisor session
+        const advHdrBtn = document.getElementById('btn-hdr-advisor');
+        if (advHdrBtn) advHdrBtn.style.display = 'inline-flex';
+
         window.openAdvisorDeskModal();
     } catch (err) {
         if (errEl) {
@@ -3032,7 +3048,11 @@ window.exitAdvisorInspection = function () {
 
 window.initAuthSession = async function () {
     const token = localStorage.getItem('fp_token');
-    if (!token) return;
+    const advHdrBtn = document.getElementById('btn-hdr-advisor');
+    if (!token) {
+        if (advHdrBtn) advHdrBtn.style.display = 'none';
+        return;
+    }
 
     try {
         window.fpAuth.token = token;
@@ -3042,8 +3062,14 @@ window.initAuthSession = async function () {
         window.fpLeadName = meRes.user.name;
         window.fpLeadPhone = meRes.user.phone;
 
+        if (advHdrBtn) {
+            advHdrBtn.style.display = (meRes.user && meRes.user.role === 'advisor') ? 'inline-flex' : 'none';
+        }
+
         const planRes = await window.fpApi('/api/plans/active');
-        window.populatePlanToUI(planRes.plan, planRes.milestones);
+        if (planRes && planRes.plan) {
+            window.populatePlanToUI(planRes.plan, planRes.milestones);
+        }
 
         revealPlannerUI(meRes.user);
     } catch (err) {
@@ -3052,6 +3078,7 @@ window.initAuthSession = async function () {
         localStorage.removeItem('fp_user');
         window.fpAuth.token = null;
         window.fpAuth.user = null;
+        if (advHdrBtn) advHdrBtn.style.display = 'none';
     }
 };
 
@@ -3059,8 +3086,17 @@ window.initAuthSession = async function () {
 // INITIALIZATION
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Check existing authentication session
-    window.initAuthSession();
+    // Support URL-triggered logout for clean switching/testing
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('logout') === '1') {
+        window.handleUserLogout(false);
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    } else {
+        // 1. Check existing authentication session
+        window.initAuthSession();
+    }
 
     // 2. Setup Range Sliders & Number Input Synchronization
     const sliders = document.querySelectorAll('.fp-slider');
