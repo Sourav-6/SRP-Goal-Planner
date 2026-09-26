@@ -393,51 +393,51 @@
                             </h3>
                         </div>
 
-                        <!-- Pre-Retirement IRR -->
+                        <!-- Equity Returns (IRR) -->
                         <div class="fp-control-group">
                             <div class="fp-control-top">
                                 <div class="fp-control-lbl">
-                                    Pre-Retirement Return (IRR)
+                                    Equity Returns (IRR)
                                     <span class="fp-control-hint">Equity & growth asset CAGR</span>
                                 </div>
                                 <div class="fp-stepper-box">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-pre-irr', -0.5)">−</button>
-                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-pre-irr" value="13.5% p.a." onclick="this.select()" oninput="handleDirectTyping('inp-pre-irr', this.value)" onblur="formatControlDisplay('inp-pre-irr')" autocomplete="off" inputmode="decimal">
+                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-pre-irr" value="12.0% p.a." onclick="this.select()" oninput="handleDirectTyping('inp-pre-irr', this.value)" onblur="formatControlDisplay('inp-pre-irr')" autocomplete="off" inputmode="decimal">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-pre-irr', 0.5)">+</button>
                                 </div>
-                                <input type="number" id="inp-pre-irr" value="13.5" min="6" max="20" step="0.5" class="fp-hidden-number">
+                                <input type="number" id="inp-pre-irr" value="12" min="6" max="20" step="0.5" class="fp-hidden-number">
                             </div>
                             <div class="fp-slider-wrap">
-                                <input type="range" id="slide-pre-irr" value="13.5" min="6" max="20" step="0.5" class="fp-slider">
+                                <input type="range" id="slide-pre-irr" value="12" min="6" max="20" step="0.5" class="fp-slider">
                             </div>
                             <div class="fp-chips-group">
-                                <button type="button" class="fp-chip" onclick="setControlVal('inp-pre-irr', 11)">11% (Conservative)</button>
-                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-pre-irr', 13.5)">13.5% (Balanced)</button>
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-pre-irr', 10)">10% (Conservative)</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-pre-irr', 12)">12% (Balanced)</button>
                                 <button type="button" class="fp-chip" onclick="setControlVal('inp-pre-irr', 15)">15% (Aggressive)</button>
                             </div>
                         </div>
 
-                        <!-- Post-Retirement IRR -->
+                        <!-- Debt Returns (IRR) -->
                         <div class="fp-control-group">
                             <div class="fp-control-top">
                                 <div class="fp-control-lbl">
-                                    Post-Retirement Return
+                                    Debt Returns (IRR)
                                     <span class="fp-control-hint">Conservative debt/SWP portfolio CAGR</span>
                                 </div>
                                 <div class="fp-stepper-box">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-post-irr', -0.5)">−</button>
-                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-post-irr" value="8.0% p.a." onclick="this.select()" oninput="handleDirectTyping('inp-post-irr', this.value)" onblur="formatControlDisplay('inp-post-irr')" autocomplete="off" inputmode="decimal">
+                                    <input type="text" class="fp-val-display fp-stepper-input" id="disp-post-irr" value="6.0% p.a." onclick="this.select()" oninput="handleDirectTyping('inp-post-irr', this.value)" onblur="formatControlDisplay('inp-post-irr')" autocomplete="off" inputmode="decimal">
                                     <button type="button" class="fp-step-btn" onclick="stepAdjust('inp-post-irr', 0.5)">+</button>
                                 </div>
-                                <input type="number" id="inp-post-irr" value="8" min="4" max="15" step="0.5" class="fp-hidden-number">
+                                <input type="number" id="inp-post-irr" value="6" min="4" max="15" step="0.5" class="fp-hidden-number">
                             </div>
                             <div class="fp-slider-wrap">
-                                <input type="range" id="slide-post-irr" value="8" min="4" max="15" step="0.5" class="fp-slider">
+                                <input type="range" id="slide-post-irr" value="6" min="4" max="15" step="0.5" class="fp-slider">
                             </div>
                             <div class="fp-chips-group">
+                                <button type="button" class="fp-chip" onclick="setControlVal('inp-post-irr', 5)">5%</button>
+                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-post-irr', 6)">6%</button>
                                 <button type="button" class="fp-chip" onclick="setControlVal('inp-post-irr', 7)">7%</button>
-                                <button type="button" class="fp-chip active" onclick="setControlVal('inp-post-irr', 8)">8%</button>
-                                <button type="button" class="fp-chip" onclick="setControlVal('inp-post-irr', 9)">9%</button>
                             </div>
                         </div>
 

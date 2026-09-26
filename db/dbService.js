@@ -167,8 +167,8 @@ const dbService = {
                 initial_corpus: 0,
                 initial_sip: 0,
                 sip_step_up: 0,
-                pre_ret_irr: 13.5,
-                post_ret_irr: 8.0,
+                pre_ret_irr: 12.0,
+                post_ret_irr: 6.0,
                 inflation_rate: 6.5,
                 initial_equity_pct: 80,
                 glide_start_months: 108,
@@ -196,7 +196,7 @@ const dbService = {
         `).run(
             planId, userId, 'My Freedom Plan', 0, 0, 100,
             0, 0, 0, 0,
-            13.5, 8.0, 6.5, 80,
+            12.0, 6.0, 6.5, 80,
             108, 12, 0, solverMeta,
             1, 1,
             1, now, now
@@ -423,8 +423,8 @@ const dbService = {
                 initial_corpus: 0,
                 initial_sip: 0,
                 sip_step_up: 0,
-                pre_ret_irr: 13.5,
-                post_ret_irr: 8.0,
+                pre_ret_irr: 12.0,
+                post_ret_irr: 6.0,
                 inflation_rate: 6.5,
                 initial_equity_pct: 80,
                 glide_start_months: 108,
@@ -517,7 +517,7 @@ const dbService = {
                     glide_start_months, glide_end_months, pension_delay_yrs, solver_mode,
                     retirement_enabled, is_first_time,
                     is_active, created_at, updated_at
-                ) VALUES (?, ?, ?, 0, 0, 100, 0, 0, 0, 0, 13.5, 8.0, 6.5, 80, 108, 12, 0, ?, 1, 1, 1, ?, ?)
+                ) VALUES (?, ?, ?, 0, 0, 100, 0, 0, 0, 0, 12.0, 6.0, 6.5, 80, 108, 12, 0, ?, 1, 1, 1, ?, ?)
             `).run(newPlanId, userId, name, solverMeta, now, now);
         }
 
@@ -542,8 +542,8 @@ const dbService = {
                 if (planData.initial_corpus !== undefined) updateObj.initial_corpus = parseFloat(planData.initial_corpus) || 0;
                 if (planData.initial_sip !== undefined) updateObj.initial_sip = parseFloat(planData.initial_sip) || 0;
                 if (planData.sip_step_up !== undefined) updateObj.sip_step_up = parseFloat(planData.sip_step_up) || 0;
-                if (planData.pre_ret_irr !== undefined) updateObj.pre_ret_irr = parseFloat(planData.pre_ret_irr) || 13.5;
-                if (planData.post_ret_irr !== undefined) updateObj.post_ret_irr = parseFloat(planData.post_ret_irr) || 8.0;
+                if (planData.pre_ret_irr !== undefined) updateObj.pre_ret_irr = parseFloat(planData.pre_ret_irr) || 12.0;
+                if (planData.post_ret_irr !== undefined) updateObj.post_ret_irr = parseFloat(planData.post_ret_irr) || 6.0;
                 if (planData.inflation_rate !== undefined) updateObj.inflation_rate = parseFloat(planData.inflation_rate) || 6.5;
                 if (planData.initial_equity_pct !== undefined) updateObj.initial_equity_pct = parseFloat(planData.initial_equity_pct) || 80;
                 if (planData.glide_start_months !== undefined) updateObj.glide_start_months = parseInt(planData.glide_start_months) || 108;
@@ -650,8 +650,8 @@ const dbService = {
                     parseFloat(planData.initial_corpus) || 0,
                     parseFloat(planData.initial_sip) || 0,
                     parseFloat(planData.sip_step_up) || 0,
-                    parseFloat(planData.pre_ret_irr) || 13.5,
-                    parseFloat(planData.post_ret_irr) || 8.0,
+                    parseFloat(planData.pre_ret_irr) || 12.0,
+                    parseFloat(planData.post_ret_irr) || 6.0,
                     parseFloat(planData.inflation_rate) || 6.5,
                     parseFloat(planData.initial_equity_pct) || 80,
                     parseInt(planData.glide_start_months) || 108,

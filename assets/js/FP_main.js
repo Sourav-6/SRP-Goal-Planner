@@ -221,8 +221,8 @@ window.updateAllEventRowSummaries = function() {
     const initEq = parseFloat(document.getElementById('inp-init-equity')?.value) || 80;
     const startM = parseInt(document.getElementById('inp-glide-start')?.value) || 108;
     const endM = parseInt(document.getElementById('inp-glide-end')?.value) || 12;
-    const eqRate = (parseFloat(document.getElementById('inp-pre-irr')?.value) || 13.5) / 100;
-    const debtRate = (parseFloat(document.getElementById('inp-post-irr')?.value) || 8.0) / 100;
+    const eqRate = (parseFloat(document.getElementById('inp-pre-irr')?.value) || 12.0) / 100;
+    const debtRate = (parseFloat(document.getElementById('inp-post-irr')?.value) || 6.0) / 100;
 
     rows.forEach(row => {
         const targetYear = parseInt(row.querySelector('.ev-age')?.value) || (currentYear + 5);
@@ -320,8 +320,8 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     const initialCorpus = parseFloat(document.getElementById('inp-initial-corpus')?.value) || 0;
     const initialSIP = parseFloat(document.getElementById('inp-initial-sip')?.value) || 0;
     const stepUp = (parseFloat(document.getElementById('inp-stepup')?.value) || 0) / 100;
-    const preIRR = (parseFloat(document.getElementById('inp-pre-irr')?.value) || 13.5) / 100;
-    const postIRR = (parseFloat(document.getElementById('inp-post-irr')?.value) || 8) / 100;
+    const preIRR = (parseFloat(document.getElementById('inp-pre-irr')?.value) || 12.0) / 100;
+    const postIRR = (parseFloat(document.getElementById('inp-post-irr')?.value) || 6.0) / 100;
     const retExpToday = parseFloat(document.getElementById('inp-expense')?.value) || 0;
     const inflation = (parseFloat(document.getElementById('inp-inflation')?.value) || 0) / 100;
     const pensionDelay = parseInt(document.getElementById('inp-pension-delay')?.value) || 0;
@@ -605,8 +605,8 @@ window.resetCalculatorDefaults = function resetCalculatorDefaults() {
         window.setControlVal('inp-initial-sip', 50000);
         window.setControlVal('inp-sip-duration', 20);
         window.setControlVal('inp-stepup', 5);
-        window.setControlVal('inp-pre-irr', 13.5);
-        window.setControlVal('inp-post-irr', 8);
+        window.setControlVal('inp-pre-irr', 12);
+        window.setControlVal('inp-post-irr', 6);
         window.setControlVal('inp-inflation', 7);
         window.setControlVal('inp-init-equity', 80);
         window.setControlVal('inp-glide-start', 108);
@@ -740,8 +740,8 @@ function collectPlanPayloadFromUI() {
         initial_sip: gNum('inp-initial-sip', 0),
         sip_duration_yrs: gInt('inp-sip-duration', Math.max(1, (gInt('inp-ret-age', 60) + gInt('inp-pension-delay', 0)) - gInt('inp-age', 40))),
         sip_step_up: gNum('inp-stepup', 0),
-        pre_ret_irr: gNum('inp-pre-irr', 13.5),
-        post_ret_irr: gNum('inp-post-irr', 8.0),
+        pre_ret_irr: gNum('inp-pre-irr', 12.0),
+        post_ret_irr: gNum('inp-post-irr', 6.0),
         inflation_rate: gNum('inp-inflation', 6.5),
         initial_equity_pct: gNum('inp-init-equity', 80),
         glide_start_months: gInt('inp-glide-start', 108),
@@ -817,8 +817,8 @@ window.populatePlanToUI = function (plan, milestones) {
     window.setControlVal('inp-sip-duration', plan.sip_duration_yrs !== undefined ? plan.sip_duration_yrs : defaultSipDuration);
 
     window.setControlVal('inp-stepup', plan.sip_step_up || 0);
-    window.setControlVal('inp-pre-irr', plan.pre_ret_irr || 13.5);
-    window.setControlVal('inp-post-irr', plan.post_ret_irr || 8.0);
+    window.setControlVal('inp-pre-irr', plan.pre_ret_irr || 12.0);
+    window.setControlVal('inp-post-irr', plan.post_ret_irr || 6.0);
     window.setControlVal('inp-inflation', plan.inflation_rate || 6.5);
     window.setControlVal('inp-init-equity', plan.initial_equity_pct !== undefined ? plan.initial_equity_pct : 80);
     window.setControlVal('inp-glide-start', plan.glide_start_months !== undefined ? plan.glide_start_months : 108);
@@ -1026,7 +1026,7 @@ window.calculateGoalLumpsumGlide = function calculateGoalLumpsumGlide(monthsToGo
     const postIrrVal = parseFloat(document.getElementById('inp-post-irr')?.value);
     const debtIRR = customOptions.debtIRR !== undefined 
         ? customOptions.debtIRR 
-        : ((isNaN(postIrrVal) ? 7.0 : postIrrVal) / 100);
+        : ((isNaN(postIrrVal) ? 6.0 : postIrrVal) / 100);
 
     // Cumulative discount calculation: product of (1 + monthly discount) from 1 to months
     let cumulativeFactor = 1.0;
@@ -1356,7 +1356,7 @@ window.renderAssetAccumulationTable = function renderAssetAccumulationTable() {
     const preIrrVal = parseFloat(document.getElementById('inp-pre-irr')?.value);
     const equityIRR = (isNaN(preIrrVal) ? 12.0 : preIrrVal) / 100;
     const postIrrVal = parseFloat(document.getElementById('inp-post-irr')?.value);
-    const debtIRR = (isNaN(postIrrVal) ? 7.0 : postIrrVal) / 100;
+    const debtIRR = (isNaN(postIrrVal) ? 6.0 : postIrrVal) / 100;
 
     // 1. Populate / sync goal selector dropdown
     if (selGoal) {
@@ -1781,7 +1781,7 @@ window.openGoalScheduleModal = function openGoalScheduleModal(goalId) {
     const preIrrVal = parseFloat(document.getElementById('inp-pre-irr')?.value);
     const equityIRR = (isNaN(preIrrVal) ? 12.0 : preIrrVal) / 100;
     const postIrrVal = parseFloat(document.getElementById('inp-post-irr')?.value);
-    const debtIRR = (isNaN(postIrrVal) ? 7.0 : postIrrVal) / 100;
+    const debtIRR = (isNaN(postIrrVal) ? 6.0 : postIrrVal) / 100;
 
     // Set modal headers
     const titleEl = modal.querySelector('.fp-modal-title');
@@ -1999,8 +1999,8 @@ window.renderMilestoneGoalCards = function renderMilestoneGoalCards() {
 
     const currentAge = parseInt(document.getElementById('inp-age')?.value) || 30;
     const currentYear = new Date().getFullYear();
-    const eqRate = (parseFloat(document.getElementById('inp-pre-irr')?.value) || 13.5) / 100;
-    const debtRate = (parseFloat(document.getElementById('inp-post-irr')?.value) || 8.0) / 100;
+    const eqRate = (parseFloat(document.getElementById('inp-pre-irr')?.value) || 12.0) / 100;
+    const debtRate = (parseFloat(document.getElementById('inp-post-irr')?.value) || 6.0) / 100;
 
     let html = '';
     window.fpMilestones.forEach(g => {
@@ -2314,8 +2314,8 @@ window.renderGoalsSummaryTable = function renderGoalsSummaryTable() {
 
     const currentAge = parseInt(document.getElementById('inp-age')?.value) || 30;
     const currentYear = new Date().getFullYear();
-    const eqRate = (parseFloat(document.getElementById('inp-pre-irr')?.value) || 13.5) / 100;
-    const debtRate = (parseFloat(document.getElementById('inp-post-irr')?.value) || 8.0) / 100;
+    const eqRate = (parseFloat(document.getElementById('inp-pre-irr')?.value) || 12.0) / 100;
+    const debtRate = (parseFloat(document.getElementById('inp-post-irr')?.value) || 6.0) / 100;
 
     let html = '';
     let metOrPartialList = [];
@@ -2982,8 +2982,8 @@ window.generateFreedomReport = function generateFreedomReport() {
     const initialCorpus = document.getElementById('inp-initial-corpus').value === '' ? 0 : parseFloat(document.getElementById('inp-initial-corpus').value);
     const initialSIP = document.getElementById('inp-initial-sip').value === '' ? 0 : parseFloat(document.getElementById('inp-initial-sip').value);
     const stepUp = (parseFloat(document.getElementById('inp-stepup').value) || 0) / 100;
-    const preIRR = (parseFloat(document.getElementById('inp-pre-irr').value) || 13.5) / 100;
-    const postIRR = (parseFloat(document.getElementById('inp-post-irr').value) || 8) / 100;
+    const preIRR = (parseFloat(document.getElementById('inp-pre-irr').value) || 12.0) / 100;
+    const postIRR = (parseFloat(document.getElementById('inp-post-irr').value) || 6.0) / 100;
     const retExpToday = parseFloat(document.getElementById('inp-expense').value) || 0;
     const inflation = (parseFloat(document.getElementById('inp-inflation').value) || 0) / 100;
     const pensionDelay = parseInt(document.getElementById('inp-pension-delay').value) || 0;
