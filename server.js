@@ -21,7 +21,7 @@ const server = app.listen(PORT, () => {
     console.log(`[SRP] Prime Wealth Financial Freedom Planner & Advisor Engine`);
     console.log(`[HTTP] Local Server running at: http://localhost:${PORT}`);
     console.log(`[DB] Database Engine: ${engine}`);
-    console.log(`[AUTH] Default Advisor Phone: 9999999999 | PIN: 7777`);
+    console.log(`[AUTH] Authentication & Session Services Online`);
     console.log(`=============================================================\n`);
 });
 

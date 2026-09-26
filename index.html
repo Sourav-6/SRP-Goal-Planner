@@ -13,7 +13,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet" />
-    <link rel="stylesheet" href="assets/css/FP_styles.css?v=2.4" />
+    <link rel="stylesheet" href="assets/css/FP_styles.css?v=2.5" />
 </head>
 
 <body>
@@ -29,7 +29,7 @@
             <button type="button" id="btn-active-plan" class="fp-plan-chip" onclick="openPlanManagerModal()" title="Switch or Manage Plans">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                 <span id="hdr-plan-name">Primary Plan</span>
-                <span class="fp-chip-caret">▾</span>
+                <span class="fp-chip-caret"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></span>
             </button>
             <div id="save-status-pill" class="fp-sync-pill" title="Cloud Database Sync Status">
                 <span class="sync-dot"></span>
@@ -1074,12 +1074,11 @@
             <form id="form-advisor-login" onsubmit="handleAdvisorLoginSubmit(event)" style="padding: 20px;">
                 <div class="fp-input-group">
                     <label for="adv-phone">Advisor Phone / Identifier</label>
-                    <input type="tel" id="adv-phone" value="9999999999" required />
+                    <input type="tel" id="adv-phone" placeholder="10-digit mobile number" maxlength="10" inputmode="numeric" required />
                 </div>
                 <div class="fp-input-group">
                     <div class="fp-lbl-flex">
                         <label for="adv-pin">4-Digit Security PIN</label>
-                        <span class="fp-lbl-hint">Default: 7777</span>
                     </div>
                     <input type="password" id="adv-pin" placeholder="••••" maxlength="4" inputmode="numeric" class="fp-pin-input" required />
                 </div>

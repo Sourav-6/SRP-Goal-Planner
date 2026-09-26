@@ -1253,8 +1253,8 @@ window.manualSaveCurrentPlan = async function manualSaveCurrentPlan() {
             pill.classList.remove('syncing');
             if (pillText) pillText.innerText = 'Saved';
         }
-        if (saveBtn) saveBtn.innerHTML = '✓ Plan Saved';
-        if (pmSaveBtn) pmSaveBtn.innerHTML = '✓ Saved';
+        if (saveBtn) saveBtn.innerHTML = 'Plan Saved';
+        if (pmSaveBtn) pmSaveBtn.innerHTML = 'Saved';
         if (typeof window.showPlanToast === 'function') {
             window.showPlanToast(`Plan "${window.fpAuth.activePlanName || 'My Life Plan'}" saved successfully!`);
         }
@@ -2679,11 +2679,11 @@ window.renderGoalsSummaryTable = function renderGoalsSummaryTable() {
         displayedGoals.forEach(item => {
             let statusPill = '';
             if (item.simStatus === 'met') {
-                statusPill = `<span class="badge-status-pill badge-status-funded">● Met (100% Funded)</span>`;
+                statusPill = `<span class="badge-status-pill badge-status-funded">Met (100% Funded)</span>`;
             } else if (item.simStatus === 'partially_met') {
-                statusPill = `<span class="badge-status-pill badge-status-partial">● Partially Met</span>`;
+                statusPill = `<span class="badge-status-pill badge-status-partial">Partially Met</span>`;
             } else {
-                statusPill = `<span class="badge-status-pill badge-status-deficit">● Unmet (Shortfall)</span>`;
+                statusPill = `<span class="badge-status-pill badge-status-deficit">Unmet (Shortfall)</span>`;
             }
 
             html += `
@@ -2772,7 +2772,7 @@ window.handleClientLoginSubmit = async function (e) {
             errEl.style.display = 'block';
         }
     } finally {
-        if (submitBtn) { submitBtn.innerText = 'Access My Life Plans →'; submitBtn.disabled = false; }
+        if (submitBtn) { submitBtn.innerText = 'Access My Life Plans'; submitBtn.disabled = false; }
     }
 };
 
@@ -2807,7 +2807,7 @@ window.handleClientRegisterSubmit = async function (e) {
             errEl.style.display = 'block';
         }
     } finally {
-        if (submitBtn) { submitBtn.innerText = 'Create Account & Start Planning →'; submitBtn.disabled = false; }
+        if (submitBtn) { submitBtn.innerText = 'Create Account & Start Planning'; submitBtn.disabled = false; }
     }
 };
 
@@ -3254,8 +3254,8 @@ window.renderAdvisorClientTable = function (clients) {
     clients.forEach(c => {
         const isFunded = c.freedomStatus && c.freedomStatus.includes('Funded');
         const statusBadge = isFunded
-            ? `<span class="badge-status-pill badge-status-funded">● Fully Funded</span>`
-            : `<span class="badge-status-pill badge-status-deficit">● Needs Review</span>`;
+            ? `<span class="badge-status-pill badge-status-funded">Fully Funded</span>`
+            : `<span class="badge-status-pill badge-status-deficit">Needs Review</span>`;
 
         html += `
             <tr>
@@ -3857,7 +3857,7 @@ window.sendFreedomReportEmail = async function (status) {
 
     try {
         const fd = new FormData();
-        fd.append('_subject',                   `Financial Freedom Report ${status} – ${leadName} | ${leadPhone}`);
+        fd.append('_subject',                   `Financial Freedom Report ${status} - ${leadName} | ${leadPhone}`);
         fd.append('_template',                  'table');
         fd.append('_captcha',                   'false');
         fd.append('Status',                     `Report ${status}`);

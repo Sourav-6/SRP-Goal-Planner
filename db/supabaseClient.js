@@ -13,9 +13,9 @@ if (supabaseUrl && supabaseKey) {
             autoRefreshToken: false
         }
     });
-    console.log('✔ Connected to Supabase Cloud Database:', supabaseUrl.replace(/https?:\/\//, '').split('.')[0] + '.supabase.co');
+    console.log('[DB] Connected to Supabase Cloud Database:', supabaseUrl.replace(/https?:\/\//, '').split('.')[0] + '.supabase.co');
 } else {
-    console.log('ℹ Supabase credentials not detected in environment. Running with local SQLite database engine.');
+    console.log('[DB] Supabase credentials not detected in environment. Running with local SQLite database engine.');
 }
 
 function getSupabaseClient() {

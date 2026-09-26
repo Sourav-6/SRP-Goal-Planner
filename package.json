@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node -e \"console.log('✔ Environment and dependencies verified')\""
+    "test": "node -e \"console.log('[TEST] Environment and dependencies verified')\""
   },
   "repository": {
     "type": "git",

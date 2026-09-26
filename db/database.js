@@ -123,18 +123,20 @@ function initSchema() {
 }
 
 function seedInitialData() {
-    const checkAdvisor = db.prepare("SELECT id FROM users WHERE phone = ?").get('9999999999');
+    const advisorPhone = process.env.DEFAULT_ADVISOR_PHONE || '9999999999';
+    const advisorPin = process.env.DEFAULT_ADVISOR_PIN || '7777';
+    const checkAdvisor = db.prepare("SELECT id FROM users WHERE phone = ?").get(advisorPhone);
     if (!checkAdvisor) {
         const advisorId = 'adv_' + Date.now();
-        const advisorPinHash = bcrypt.hashSync('7777', 10);
+        const advisorPinHash = bcrypt.hashSync(advisorPin, 10);
         const now = new Date().toISOString();
 
         db.prepare(`
             INSERT INTO users (id, name, phone, pin_hash, role, created_at, last_login_at)
             VALUES (?, ?, ?, ?, 'advisor', ?, ?)
-        `).run(advisorId, 'SRP Wealth Advisor Desk', '9999999999', advisorPinHash, now, now);
+        `).run(advisorId, 'SRP Wealth Advisor Desk', advisorPhone, advisorPinHash, now, now);
 
-        console.log('✔ Initial database initialized with Advisor account.');
+        console.log('[DB] Advisor account initialized.');
     }
 }
 
