@@ -264,6 +264,30 @@ window.renderUncalculatedHeroState = function renderUncalculatedHeroState() {
         statusEl.innerText = 'Awaiting Initial Submission';
     }
 
+    const methodEl = document.getElementById('kpi-calc-method-text');
+    if (methodEl) {
+        const mode = document.getElementById('inp-solver-mode')?.value || 'normal';
+        methodEl.innerText = mode === 'solve-lumpsum' ? 'Calculate Lumpsum Required' : (mode === 'solve-sip' ? 'Calculate SIP Required' : 'Standard Projection');
+    }
+
+    const currentCorpusEl = document.getElementById('kpi-current-corpus');
+    if (currentCorpusEl) currentCorpusEl.innerText = '₹ --';
+
+    const sipValEl = document.getElementById('kpi-sip-val');
+    if (sipValEl) sipValEl.innerText = '₹ -- / mo';
+
+    const stepUpEl = document.getElementById('kpi-stepup-val');
+    if (stepUpEl) stepUpEl.innerText = '--%';
+
+    const otherInflowsEl = document.getElementById('kpi-other-inflows');
+    if (otherInflowsEl) otherInflowsEl.innerText = '₹ --';
+
+    const totalWithdrawalsEl = document.getElementById('kpi-total-withdrawals');
+    if (totalWithdrawalsEl) totalWithdrawalsEl.innerText = '₹ --';
+
+    const exhaustBalEl = document.getElementById('kpi-exhaustion-balance');
+    if (exhaustBalEl) exhaustBalEl.innerText = '₹ --';
+
     const progressBar = document.getElementById('kpi-timeline-bar');
     if (progressBar) progressBar.style.width = '0%';
 
@@ -329,6 +353,8 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     const startM = parseInt(document.getElementById('inp-glide-start')?.value) || 108;
     const endM = parseInt(document.getElementById('inp-glide-end')?.value) || 12;
     const isRetOff = !window.fpRetirementEnabled;
+    const mode = document.getElementById('inp-solver-mode')?.value || 'normal';
+    const exhaustExpected = parseInt(document.getElementById('inp-exhaustion-expected')?.value) || 100;
     
     // Quick years remaining
     const effectiveRetAge = isRetOff ? Math.max(age + 20, 60) : retAge;
@@ -336,70 +362,261 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     const yearsLeftEl = document.getElementById('kpi-years-left');
     if (yearsLeftEl) yearsLeftEl.innerText = yearsLeft;
 
+    // Display calculation method badge
+    let methodDisplay = 'Standard Projection';
+    if (mode === 'solve-lumpsum') {
+        methodDisplay = 'Calculate Lumpsum Required';
+    } else if (mode === 'solve-sip') {
+        methodDisplay = 'Calculate SIP Required';
+    }
+    const methodEl = document.getElementById('kpi-calc-method-text');
+    if (methodEl) methodEl.innerText = methodDisplay;
+
     // SIP Duration in Years (from Current Age)
     const simStartAge = age > 0 ? age : 30;
     const sipDuration = parseInt(document.getElementById('inp-sip-duration')?.value) || Math.max(1, effectiveRetAge - simStartAge);
-
-    // Fast simulation loop
-    let corpus = initialCorpus;
-    let totalInvested = initialCorpus;
-    let corpusAtRetirement = 0;
-    let exhaustionAge = null;
-    const mPostRate = Math.pow(1 + postIRR, 1 / 12) - 1;
     const totalRetMonths = Math.max(0, (effectiveRetAge - simStartAge) * 12);
+    const currentYear = new Date().getFullYear();
 
-    for (let a = simStartAge; a <= 100; a++) {
-        let yearsElapsed = a - simStartAge;
-        let monthlySIP = 0;
-        let monthlySWP = 0;
+    // Construct base events from milestones
+    const baseEvents = [];
+    (window.fpMilestones || []).forEach(g => {
+        const targetAge = g.target_age || (simStartAge + Math.max(1, (g.target_year || currentYear + 5) - currentYear));
+        const pv = parseFloat(g.present_value) || 0;
+        const activeAmt = parseFloat(g.active_amount) || 0;
+        const inf = (parseFloat(g.inflation_rate) || 7.0) / 100;
+        const eqPct = g.equity_pct !== undefined ? parseFloat(g.equity_pct) : 70;
+        const dtPct = 100 - eqPct;
 
-        if (yearsElapsed < sipDuration) {
-            monthlySIP = initialSIP * Math.pow(1 + stepUp, yearsElapsed);
-            totalInvested += (monthlySIP * 12);
-        }
+        baseEvents.push({
+            age: targetAge,
+            name: g.name || 'Life Goal',
+            pv: pv,
+            activeAmt: activeAmt,
+            eqPct: eqPct,
+            dtPct: dtPct,
+            inflation: inf,
+            type: g.goal_type || 'outflow',
+            loanRate: (parseFloat(g.loan_rate) || 8.5) / 100,
+            loanYears: parseInt(g.loan_tenure_yrs) || 5,
+            recStepUp: (parseFloat(g.rec_step_up) || 0) / 100,
+            recYears: parseInt(g.rec_tenure_yrs) || 5
+        });
+    });
 
-        if (!isRetOff && a > retAge + pensionDelay && corpus > 0) {
-            monthlySWP = retExpToday * Math.pow(1 + inflation, yearsElapsed);
-        }
+    const mPostRate = Math.pow(1 + postIRR, 1 / 12) - 1;
 
-        for (let m = 0; m < 12; m++) {
-            let monthsElapsed = yearsElapsed * 12 + m;
-            let monthsLeftToRet = totalRetMonths - monthsElapsed;
-            let mRate;
+    // Fast simulation runner that accounts for SIP, SWP, and milestone events
+    const runSim = (simInitialCorpus, simInitialSIP) => {
+        let events = JSON.parse(JSON.stringify(baseEvents));
+        let corpus = simInitialCorpus;
+        let totalInvestments = simInitialCorpus;
+        let totalSIPInvested = 0;
+        let totalOtherInflows = 0;
+        let totalAllWithdrawals = 0;
+        let highestCorpus = 0;
+        let exhaustionAge = null;
+        let corpusAtRetirement = 0;
+        const maxSimAge = mode === 'normal' ? 100 : exhaustExpected;
 
-            if (a < effectiveRetAge && monthsLeftToRet > 0) {
-                let alloc = calcGlideAllocation(monthsLeftToRet, initEq, startM, endM);
-                let rAnnual = (alloc.equityPct / 100) * preIRR + (alloc.debtPct / 100) * postIRR;
-                mRate = Math.pow(1 + rAnnual, 1 / 12) - 1;
-            } else {
-                mRate = mPostRate; // Post-retirement conservative rate
+        for (let a = simStartAge; a <= maxSimAge; a++) {
+            let yearsElapsed = a - simStartAge;
+            let monthlySIP = 0;
+            let monthlySWP = 0;
+            let rowInflow = 0;
+            let rowOutflow = 0;
+            let isFirstYear = (a === simStartAge);
+
+            if (yearsElapsed < sipDuration) {
+                monthlySIP = simInitialSIP * Math.pow(1 + stepUp, yearsElapsed);
+                totalSIPInvested += (monthlySIP * 12);
+                totalInvestments += (monthlySIP * 12);
             }
 
-            if (corpus > 0 || monthlySIP > 0) {
-                corpus = corpus + monthlySIP - monthlySWP;
-                corpus = corpus + (corpus * mRate);
-            } else {
+            // Retirement SWP
+            if (!isRetOff && a > retAge + pensionDelay && corpus > 0) {
+                monthlySWP = retExpToday * Math.pow(1 + inflation, yearsElapsed);
+                totalAllWithdrawals += (monthlySWP * 12);
+            }
+
+            // Milestone events (inflow, outflow, loan EMI, recurring)
+            let evs = events.filter(e => e.age === a);
+            evs.forEach(ev => {
+                if (ev.type === 'loan') {
+                    let loanAmtOrig = ev.pv;
+                    let loanInflatedTarget = loanAmtOrig * Math.pow(1 + ev.inflation, yearsElapsed);
+                    let durationYrs = ev.loanYears;
+                    let rate = ev.loanRate;
+                    let r = rate / 12;
+                    let n = durationYrs * 12;
+                    let emi = (loanInflatedTarget * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+
+                    rowOutflow += (emi * 12);
+                    totalAllWithdrawals += (emi * 12);
+
+                    if (durationYrs > 1) {
+                        for (let l_y = 1; l_y < durationYrs; l_y++) {
+                            let targetAge = a + l_y;
+                            if (targetAge <= maxSimAge) {
+                                events.push({
+                                    age: targetAge,
+                                    name: ev.name,
+                                    pv: loanAmtOrig,
+                                    isEMIStep: true,
+                                    emiAmount: emi * 12,
+                                    inflation: ev.inflation,
+                                    type: 'emi-outflow'
+                                });
+                            }
+                        }
+                    }
+                } else if (ev.type === 'emi-outflow') {
+                    rowOutflow += ev.emiAmount;
+                    totalAllWithdrawals += ev.emiAmount;
+                } else if (ev.type === 'recurring-outflow') {
+                    let baseAmt = ev.pv * Math.pow(1 + ev.inflation, yearsElapsed);
+                    let yearAmt = ev.isRecStep ? ev.recurringAmount : baseAmt;
+                    rowOutflow += yearAmt;
+                    totalAllWithdrawals += yearAmt;
+
+                    if (!ev.isRecStep && ev.recYears > 1) {
+                        for (let ry = 1; ry < ev.recYears; ry++) {
+                            let targetAge = a + ry;
+                            if (targetAge <= maxSimAge) {
+                                let futureAmt = baseAmt * Math.pow(1 + ev.recStepUp, ry);
+                                events.push({
+                                    age: targetAge,
+                                    name: ev.name,
+                                    pv: ev.pv,
+                                    inflation: ev.inflation,
+                                    type: 'recurring-outflow',
+                                    isRecStep: true,
+                                    recurringAmount: futureAmt,
+                                    recYearNum: ry + 1,
+                                    recStepUp: ev.recStepUp,
+                                    recYears: 0
+                                });
+                            }
+                        }
+                    }
+                } else {
+                    let inflatedAmt = ev.pv * Math.pow(1 + ev.inflation, yearsElapsed);
+                    if (ev.type === 'inflow') {
+                        rowInflow += inflatedAmt;
+                        totalOtherInflows += inflatedAmt;
+                    } else {
+                        rowOutflow += inflatedAmt;
+                        totalAllWithdrawals += inflatedAmt;
+                    }
+                }
+            });
+
+            if (corpus <= 0 && !isFirstYear) {
+                monthlySWP = 0;
+                rowOutflow = 0;
                 corpus = 0;
             }
+
+            let currentCorpus = isFirstYear ? simInitialCorpus : corpus;
+            let mSIP = monthlySIP;
+            let mSWP = monthlySWP;
+            let mOut = rowOutflow / 12;
+            let mIn = rowInflow / 12;
+
+            for (let m = 0; m < 12; m++) {
+                let monthsElapsed = yearsElapsed * 12 + m;
+                let monthsLeftToRet = totalRetMonths - monthsElapsed;
+                let mRate;
+
+                if (a < effectiveRetAge && monthsLeftToRet > 0) {
+                    let alloc = calcGlideAllocation(monthsLeftToRet, initEq, startM, endM);
+                    let rAnnual = (alloc.equityPct / 100) * preIRR + (alloc.debtPct / 100) * postIRR;
+                    mRate = Math.pow(1 + rAnnual, 1 / 12) - 1;
+                } else {
+                    mRate = mPostRate;
+                }
+
+                if (currentCorpus > 0 || mSIP > 0 || mIn > 0) {
+                    currentCorpus = currentCorpus + mSIP + mIn - mSWP - mOut;
+                    currentCorpus = currentCorpus + (currentCorpus * mRate);
+                } else {
+                    currentCorpus = 0;
+                }
+            }
+
+            corpus = currentCorpus;
+
+            if (corpus > highestCorpus) highestCorpus = corpus;
+            if (a === effectiveRetAge) corpusAtRetirement = corpus;
+            if (!isRetOff && corpus <= 0 && exhaustionAge === null && !isFirstYear && a > retAge) {
+                exhaustionAge = a;
+            }
+
+            if (a >= maxSimAge && corpus <= 0) break;
         }
 
-        if (a === effectiveRetAge) {
-            corpusAtRetirement = corpus;
-        }
+        return {
+            finalCorpus: corpus,
+            corpusAtRetirement,
+            totalInvestments,
+            totalSIPInvested,
+            totalOtherInflows,
+            totalAllWithdrawals,
+            exhaustionAge,
+            highestCorpus
+        };
+    };
 
-        if (!isRetOff && corpus <= 0 && exhaustionAge === null && a > retAge) {
-            exhaustionAge = a;
+    let targetCorpus = initialCorpus;
+    let targetSIP = initialSIP;
+
+    if (mode === 'solve-lumpsum') {
+        let low = 0;
+        let high = 1000000000;
+        let bestCorpus = 0;
+        for (let i = 0; i < 50; i++) {
+            let mid = (low + high) / 2;
+            let sim = runSim(mid, initialSIP);
+            if (sim.finalCorpus > 0) {
+                high = mid;
+                bestCorpus = mid;
+            } else {
+                low = mid;
+            }
         }
+        targetCorpus = bestCorpus;
+    } else if (mode === 'solve-sip') {
+        let low = 0;
+        let high = 5000000;
+        let bestSIP = 0;
+        for (let i = 0; i < 50; i++) {
+            let mid = (low + high) / 2;
+            let sim = runSim(initialCorpus, mid);
+            if (sim.finalCorpus > 0) {
+                high = mid;
+                bestSIP = mid;
+            } else {
+                low = mid;
+            }
+        }
+        targetSIP = bestSIP;
     }
+
+    const simRes = runSim(targetCorpus, targetSIP);
+    const exhaustionAge = simRes.exhaustionAge;
 
     // Fast goal status tracking for live UI
     const simGoalStatus = {};
     (window.fpMilestones || []).forEach(m => {
         const tAge = m.target_age || (simStartAge + 5);
-        if (exhaustionAge !== null && exhaustionAge < tAge) {
-            simGoalStatus[m.id] = { status: 'unmet', fundedPct: 0 };
-        } else if (exhaustionAge === tAge) {
-            simGoalStatus[m.id] = { status: 'partially_met', fundedPct: 50 };
+        if (mode === 'normal') {
+            if (exhaustionAge !== null && exhaustionAge < tAge) {
+                simGoalStatus[m.id] = { status: 'unmet', fundedPct: 0 };
+            } else if (exhaustionAge === tAge) {
+                simGoalStatus[m.id] = { status: 'partially_met', fundedPct: 50 };
+            } else {
+                simGoalStatus[m.id] = { status: 'met', fundedPct: 100 };
+            }
         } else {
             simGoalStatus[m.id] = { status: 'met', fundedPct: 100 };
         }
@@ -409,9 +626,9 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     // Monthly pension needed at retirement (in future money)
     const monthlyPensionAtRet = isRetOff ? 0 : (retExpToday * Math.pow(1 + inflation, retAge - simStartAge));
 
-    // Update KPI UI
+    // Update Primary KPI UI
     const retCorpusEl = document.getElementById('kpi-ret-corpus');
-    if (retCorpusEl) retCorpusEl.innerText = formatIndianCurrency(corpusAtRetirement);
+    if (retCorpusEl) retCorpusEl.innerText = formatIndianCurrency(simRes.corpusAtRetirement);
 
     const pensionEl = document.getElementById('kpi-monthly-pension');
     if (pensionEl) {
@@ -419,7 +636,54 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     }
 
     const totalInvestedEl = document.getElementById('kpi-total-invested');
-    if (totalInvestedEl) totalInvestedEl.innerText = formatIndianCurrency(totalInvested);
+    if (totalInvestedEl) totalInvestedEl.innerText = formatIndianCurrency(simRes.totalInvestments);
+
+    // Update Secondary Detailed Financial Cashflow Breakdown UI
+    const currentCorpusEl = document.getElementById('kpi-current-corpus');
+    if (currentCorpusEl) {
+        if (mode === 'solve-lumpsum') {
+            currentCorpusEl.innerHTML = `${formatIndianCurrency(targetCorpus)} <span style="font-size:10px; color:#60a5fa; font-weight:600;">(Req.)</span>`;
+        } else {
+            currentCorpusEl.innerText = formatIndianCurrency(initialCorpus);
+        }
+    }
+
+    const sipValEl = document.getElementById('kpi-sip-val');
+    if (sipValEl) {
+        if (mode === 'solve-sip') {
+            sipValEl.innerHTML = `${formatIndianCurrency(targetSIP)} / mo <span style="font-size:10px; color:#60a5fa; font-weight:600;">(Req.)</span>`;
+        } else {
+            sipValEl.innerText = `${formatIndianCurrency(initialSIP)} / mo`;
+        }
+    }
+
+    const stepUpEl = document.getElementById('kpi-stepup-val');
+    if (stepUpEl) {
+        stepUpEl.innerText = stepUp > 0 ? `${(stepUp * 100).toFixed(0)}% p.a.` : `0% (Flat)`;
+    }
+
+    const otherInflowsEl = document.getElementById('kpi-other-inflows');
+    if (otherInflowsEl) {
+        otherInflowsEl.innerText = formatIndianCurrency(simRes.totalOtherInflows);
+    }
+
+    const totalWithdrawalsEl = document.getElementById('kpi-total-withdrawals');
+    if (totalWithdrawalsEl) {
+        totalWithdrawalsEl.innerText = formatIndianCurrency(simRes.totalAllWithdrawals);
+    }
+
+    const exhaustBalEl = document.getElementById('kpi-exhaustion-balance');
+    if (exhaustBalEl) {
+        if (mode === 'normal') {
+            if (exhaustionAge && exhaustionAge < 100) {
+                exhaustBalEl.innerText = `₹ 0 (at Age ${exhaustionAge})`;
+            } else {
+                exhaustBalEl.innerText = `${formatIndianCurrency(simRes.finalCorpus)} (Age 100+)`;
+            }
+        } else {
+            exhaustBalEl.innerText = `₹ 0 (at Age ${exhaustExpected})`;
+        }
+    }
 
     // Status Badge
     const statusEl = document.getElementById('kpi-freedom-status');
@@ -427,6 +691,9 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
         if (isRetOff) {
             statusEl.className = 'kpi-freedom-badge badge-success';
             statusEl.innerText = 'Goal Accumulation Mode';
+        } else if (mode !== 'normal') {
+            statusEl.className = 'kpi-freedom-badge badge-success';
+            statusEl.innerText = `Funded till Target Age ${exhaustExpected}`;
         } else if (!exhaustionAge || exhaustionAge >= 100) {
             statusEl.className = 'kpi-freedom-badge badge-success';
             statusEl.innerText = 'Fully Funded (Age 100+)';
@@ -462,6 +729,8 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
     if (barEnd) {
         if (isRetOff) {
             barEnd.innerText = `Accumulate: 100+`;
+        } else if (mode !== 'normal') {
+            barEnd.innerText = `Target: Age ${exhaustExpected}`;
         } else {
             barEnd.innerText = exhaustionAge ? `Exhaust: ${exhaustionAge}` : `Freedom: 100+`;
         }
@@ -469,11 +738,18 @@ window.updateLiveFreedomSnapshot = function updateLiveFreedomSnapshot() {
 
     // Record snapshot KPIs for database persistence
     window.fpLastCalculatedSnapshot = {
-        targetCorpusAtRet: corpusAtRetirement,
+        targetCorpusAtRet: simRes.corpusAtRetirement,
         monthlyPensionNeeded: monthlyPensionAtRet,
         freedomStatus: statusEl ? statusEl.innerText : 'Fully Funded',
         exhaustionAge: exhaustionAge || 100,
-        totalInvested: totalInvested
+        totalInvested: simRes.totalInvestments,
+        calculationMethod: methodDisplay,
+        currentCorpus: targetCorpus,
+        monthlySIP: targetSIP,
+        stepUpRate: (stepUp * 100),
+        totalInflow: simRes.totalOtherInflows,
+        totalWithdrawals: simRes.totalAllWithdrawals,
+        exhaustionBalance: (exhaustionAge && exhaustionAge < 100) ? 0 : simRes.finalCorpus
     };
 
     if (typeof window.renderGoalLumpsumPartitionTable === 'function') {
@@ -3227,6 +3503,7 @@ window.generateFreedomReport = function generateFreedomReport() {
         let corpus = 0;
         let totalInvestments = simInitialCorpus;
         let totalWithdrawals = 0;
+        let totalOtherInflows = 0;
         let highestCorpus = 0;
         let exhaustionAge = null;
         let corpusAtRetirement = 0;
@@ -3352,6 +3629,7 @@ window.generateFreedomReport = function generateFreedomReport() {
                         rowDetails.push(`<span style="color:#10b981">${escapeHtml(ev.name)}</span>`);
                         rowInflow += inflatedAmt;
                         totalInvestments += inflatedAmt;
+                        totalOtherInflows += inflatedAmt;
                     } else {
                         pvText = `<span style="color:#e63946">${formatIndianCurrency(ev.pv)}, ${(ev.inflation * 100).toFixed(0)}%</span>`;
                         rowPVs.push(pvText);
@@ -3445,6 +3723,7 @@ window.generateFreedomReport = function generateFreedomReport() {
             tableHtml,
             totalInvestments,
             totalWithdrawals,
+            totalOtherInflows,
             highestCorpus,
             exhaustionAge,
             corpusAtRetirement,
@@ -3524,6 +3803,7 @@ window.generateFreedomReport = function generateFreedomReport() {
     document.getElementById('report-table').innerHTML = finalSim.tableHtml;
     document.getElementById('report-summary').innerHTML = solvedText + `
         <div class="fp-summary-col">
+            <div class="fp-sum-row"><span>Calculation Method :</span> <strong>${mode === 'solve-lumpsum' ? 'Calculate Lumpsum Required' : (mode === 'solve-sip' ? 'Calculate SIP Required' : 'Standard Projection')}</strong></div>
             <div class="fp-sum-row"><span>Initial Corpus :</span> <strong>${fmtINR_plain(targetInitialCorpus)}</strong></div>
             <div class="fp-sum-row"><span>Initial SIP :</span> <strong>${fmtINR_plain(targetInitialSIP)}</strong></div>
             <div class="fp-sum-row"><span>Initial Equity % :</span> <strong>${initEq}% (${100 - initEq}% Debt)</strong></div>
@@ -3539,6 +3819,7 @@ window.generateFreedomReport = function generateFreedomReport() {
             <div class="fp-sum-row"><span>Retirement Expense Today :</span> <strong>${isRetOff ? 'Disabled (Goal Mode)' : fmtINR_plain(retExpToday)}</strong></div>
             <div class="fp-sum-row"><span>Monthly Pension at Ret. :</span> <strong>${isRetOff ? '₹ 0 (Disabled)' : fmtINR_plain(swpAtRetAge)}</strong></div>
             <div class="fp-sum-row"><span>Total Investments :</span> <strong>${fmtINR_plain(finalSim.totalInvestments)}</strong></div>
+            <div class="fp-sum-row"><span>Other Inflows (Income) :</span> <strong>${fmtINR_plain(finalSim.totalOtherInflows || 0)}</strong></div>
             <div class="fp-sum-row"><span>Total Withdrawals :</span> <strong>${fmtINR_plain(finalSim.totalWithdrawals)}</strong></div>
             <div class="fp-sum-row"><span>Highest Corpus Peak :</span> <strong>${fmtINR_plain(finalSim.highestCorpus)}</strong></div>
             <div class="fp-sum-row"><span>Exhaustion Age :</span> <strong>${isRetOff ? 'Wealth Acc: 100+' : (finalSim.exhaustionAge || '>'+maxAge)}</strong></div>

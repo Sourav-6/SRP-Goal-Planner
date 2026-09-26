@@ -160,14 +160,22 @@
             <!-- REAL-TIME LIVE RETIREMENT SNAPSHOT (HERO KPI CARD) -->
             <div class="fp-hero-kpi" id="live-hero-kpi">
                 <div class="kpi-header">
-                    <div class="kpi-title">
-                        <span class="pulse-dot"></span> Live Freedom Snapshot
+                    <div class="kpi-header-left">
+                        <div class="kpi-title">
+                            <span class="pulse-dot"></span> Live Freedom Snapshot
+                        </div>
+                        <div class="kpi-method-pill" id="kpi-calc-method-pill" title="Click to view or change calculation analysis mode" onclick="scrollToCard('card-assumptions')">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="11" y2="17"/></svg>
+                            <span class="kpi-method-lbl">Mode:</span>
+                            <span class="kpi-method-val" id="kpi-calc-method-text">Standard Projection</span>
+                        </div>
                     </div>
                     <div id="kpi-freedom-status" class="kpi-freedom-badge badge-success">
                         Fully Funded (Age 100+)
                     </div>
                 </div>
 
+                <!-- Primary Projection Metrics -->
                 <div class="kpi-grid">
                     <div class="kpi-metric">
                         <div class="kpi-metric-lbl">Target Corpus at Ret.</div>
@@ -182,8 +190,36 @@
                         <div class="kpi-metric-val" id="kpi-years-left">20 Yrs</div>
                     </div>
                     <div class="kpi-metric">
-                        <div class="kpi-metric-lbl">Total SIP Invested</div>
+                        <div class="kpi-metric-lbl">Total Investment (Corpus + SIP)</div>
                         <div class="kpi-metric-val" id="kpi-total-invested">₹ 1.98 Cr</div>
+                    </div>
+                </div>
+
+                <!-- Detailed Financial Cashflow Breakdown Grid -->
+                <div class="kpi-sub-breakdown" id="kpi-sub-breakdown">
+                    <div class="kpi-sub-item">
+                        <div class="kpi-sub-lbl">Current Corpus</div>
+                        <div class="kpi-sub-val" id="kpi-current-corpus">₹ 0</div>
+                    </div>
+                    <div class="kpi-sub-item">
+                        <div class="kpi-sub-lbl">Monthly SIP</div>
+                        <div class="kpi-sub-val highlight-cyan" id="kpi-sip-val">₹ 0 / mo</div>
+                    </div>
+                    <div class="kpi-sub-item">
+                        <div class="kpi-sub-lbl">Step-Up SIP</div>
+                        <div class="kpi-sub-val" id="kpi-stepup-val">0% p.a.</div>
+                    </div>
+                    <div class="kpi-sub-item">
+                        <div class="kpi-sub-lbl">Inflow (Other Income)</div>
+                        <div class="kpi-sub-val highlight-emerald" id="kpi-other-inflows">₹ 0</div>
+                    </div>
+                    <div class="kpi-sub-item">
+                        <div class="kpi-sub-lbl">All Withdrawals (SWP + Goals)</div>
+                        <div class="kpi-sub-val highlight-coral" id="kpi-total-withdrawals">₹ 0</div>
+                    </div>
+                    <div class="kpi-sub-item">
+                        <div class="kpi-sub-lbl">Exhaustion Age Balance</div>
+                        <div class="kpi-sub-val highlight-amber" id="kpi-exhaustion-balance">₹ 0 at Age 100+</div>
                     </div>
                 </div>
 
