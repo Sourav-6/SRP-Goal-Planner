@@ -44,6 +44,10 @@
         </div>
 
         <div class="pwa-nav-actions">
+            <button type="button" id="btn-top-advisor-link" class="fp-top-advisor-link" onclick="openAdvisorLoginModal()" title="Advisor Portal Access">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>Advisor Access</span>
+            </button>
             <button class="pwa-btn-icon" onclick="resetCalculatorDefaults()" title="Reset to Defaults" aria-label="Reset Defaults">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             </button>
@@ -70,8 +74,7 @@
                 <!-- AUTH TAB SWITCHER -->
                 <div class="fp-auth-tabs">
                     <button type="button" id="tab-btn-login" class="fp-auth-tab active" onclick="switchAuthTab('login')">Client Sign In</button>
-                    <button type="button" id="tab-btn-register" class="fp-auth-tab" onclick="switchAuthTab('register')">New Client</button>
-                    <button type="button" id="tab-btn-advisor" class="fp-auth-tab" onclick="switchAuthTab('advisor')">Advisor Portal</button>
+                    <button type="button" id="tab-btn-register" class="fp-auth-tab" onclick="switchAuthTab('register')">New Client Onboarding</button>
                 </div>
 
                 <!-- 1. SIGN IN FORM -->
@@ -128,34 +131,9 @@
                     </button>
                 </form>
 
-                <!-- 3. ADVISOR LOGIN FORM -->
-                <form id="form-client-advisor" class="fp-auth-form" style="display:none;" onsubmit="handleAdvisorLoginSubmit(event, 'card')">
-                    <div class="fp-input-group">
-                        <label for="adv-card-phone">Advisor Phone / Identifier</label>
-                        <div class="fp-phone-input-wrap">
-                            <span class="fp-country-prefix">+91</span>
-                            <input type="tel" id="adv-card-phone" name="phone" value="9999999999" placeholder="10-digit mobile number" maxlength="10" inputmode="numeric" required />
-                        </div>
-                    </div>
-                    <div class="fp-input-group">
-                        <div class="fp-lbl-flex">
-                            <label for="adv-card-pin">4-Digit Security PIN</label>
-                            <span class="fp-lbl-hint">Default: 7777</span>
-                        </div>
-                        <input type="password" id="adv-card-pin" name="pin" placeholder="••••" maxlength="4" inputmode="numeric" class="fp-pin-input" required />
-                    </div>
-
-                    <div id="adv-card-error-msg" class="fp-form-error" style="display:none;"></div>
-
-                    <button type="submit" id="btn-adv-card-submit" class="fp-btn-primary" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
-                        Unlock Advisor Intelligence Desk
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-                    </button>
-                </form>
-
                 <!-- SECRET ADVISOR TOGGLE -->
                 <div class="fp-auth-footer">
-                    <button type="button" class="fp-advisor-toggle-link" onclick="switchAuthTab('advisor')">
+                    <button type="button" class="fp-advisor-toggle-link" onclick="openAdvisorLoginModal()">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15h2"/><path d="M12 11h4"/><path d="M12 7h6"/><path d="M5 21a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"/></svg>
                         SRP Wealth Advisor Portal Access
                     </button>

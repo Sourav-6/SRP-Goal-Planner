@@ -2451,22 +2451,18 @@ window.renderGoalsSummaryTable = function renderGoalsSummaryTable() {
     }
 };
 
-// TAB SWITCHING (SIGN IN / REGISTER / ADVISOR)
+// TAB SWITCHING (SIGN IN / REGISTER)
 window.switchAuthTab = function (tab) {
     const btnLogin = document.getElementById('tab-btn-login');
     const btnReg = document.getElementById('tab-btn-register');
-    const btnAdv = document.getElementById('tab-btn-advisor');
     const formLogin = document.getElementById('form-client-login');
     const formReg = document.getElementById('form-client-register');
-    const formAdv = document.getElementById('form-client-advisor');
 
     if (btnLogin) btnLogin.classList.toggle('active', tab === 'login');
     if (btnReg) btnReg.classList.toggle('active', tab === 'register');
-    if (btnAdv) btnAdv.classList.toggle('active', tab === 'advisor');
 
     if (formLogin) formLogin.style.display = (tab === 'login') ? 'block' : 'none';
     if (formReg) formReg.style.display = (tab === 'register') ? 'block' : 'none';
-    if (formAdv) formAdv.style.display = (tab === 'advisor') ? 'block' : 'none';
 };
 
 window.handleClientLoginSubmit = async function (e) {
@@ -2553,6 +2549,10 @@ function revealPlannerUI(user) {
         userNameEl.innerText = user.name ? user.name.split(' ')[0] : 'Client';
     }
 
+    // Hide pre-login top advisor link once user logs in
+    const topAdvLink = document.getElementById('btn-top-advisor-link');
+    if (topAdvLink) topAdvLink.style.display = 'none';
+
     // Only authorized advisors see Advisor Desk in header; regular clients never see it
     const advHdrBtn = document.getElementById('btn-hdr-advisor');
     if (advHdrBtn) {
@@ -2577,6 +2577,10 @@ window.handleUserLogout = function (confirmPrompt = true) {
 
     const userBar = document.getElementById('fp-user-bar');
     if (userBar) userBar.style.display = 'none';
+
+    // Restore pre-login top advisor link on logout
+    const topAdvLink = document.getElementById('btn-top-advisor-link');
+    if (topAdvLink) topAdvLink.style.display = 'inline-flex';
 
     const advHdrBtn = document.getElementById('btn-hdr-advisor');
     if (advHdrBtn) advHdrBtn.style.display = 'none';
@@ -2874,13 +2878,12 @@ window.closeAdvisorLoginModal = function () {
     if (m) m.style.display = 'none';
 };
 
-window.handleAdvisorLoginSubmit = async function (e, source = 'modal') {
+window.handleAdvisorLoginSubmit = async function (e) {
     e.preventDefault();
-    const isCard = source === 'card';
-    const phoneInput = document.getElementById(isCard ? 'adv-card-phone' : 'adv-phone');
-    const pinInput = document.getElementById(isCard ? 'adv-card-pin' : 'adv-pin');
-    const errEl = document.getElementById(isCard ? 'adv-card-error-msg' : 'adv-error-msg');
-    const submitBtn = document.getElementById(isCard ? 'btn-adv-card-submit' : 'btn-adv-login');
+    const phoneInput = document.getElementById('adv-phone');
+    const pinInput = document.getElementById('adv-pin');
+    const errEl = document.getElementById('adv-error-msg');
+    const submitBtn = document.getElementById('btn-adv-login');
 
     const phone = phoneInput ? phoneInput.value.trim() : '';
     const pin = pinInput ? pinInput.value.trim() : '';
@@ -2901,7 +2904,10 @@ window.handleAdvisorLoginSubmit = async function (e, source = 'modal') {
 
         window.closeAdvisorLoginModal();
 
-        // Enable advisor desk button for this advisor session
+        // Hide pre-login top advisor link, show advisor desk button
+        const topAdvLink = document.getElementById('btn-top-advisor-link');
+        if (topAdvLink) topAdvLink.style.display = 'none';
+
         const advHdrBtn = document.getElementById('btn-hdr-advisor');
         if (advHdrBtn) advHdrBtn.style.display = 'inline-flex';
 
@@ -3049,7 +3055,9 @@ window.exitAdvisorInspection = function () {
 window.initAuthSession = async function () {
     const token = localStorage.getItem('fp_token');
     const advHdrBtn = document.getElementById('btn-hdr-advisor');
+    const topAdvLink = document.getElementById('btn-top-advisor-link');
     if (!token) {
+        if (topAdvLink) topAdvLink.style.display = 'inline-flex';
         if (advHdrBtn) advHdrBtn.style.display = 'none';
         return;
     }
@@ -3062,6 +3070,7 @@ window.initAuthSession = async function () {
         window.fpLeadName = meRes.user.name;
         window.fpLeadPhone = meRes.user.phone;
 
+        if (topAdvLink) topAdvLink.style.display = 'none';
         if (advHdrBtn) {
             advHdrBtn.style.display = (meRes.user && meRes.user.role === 'advisor') ? 'inline-flex' : 'none';
         }
@@ -3078,6 +3087,7 @@ window.initAuthSession = async function () {
         localStorage.removeItem('fp_user');
         window.fpAuth.token = null;
         window.fpAuth.user = null;
+        if (topAdvLink) topAdvLink.style.display = 'inline-flex';
         if (advHdrBtn) advHdrBtn.style.display = 'none';
     }
 };

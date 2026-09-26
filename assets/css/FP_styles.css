@@ -147,6 +147,28 @@ html, body {
     border-color: var(--border-medium);
 }
 
+.fp-top-advisor-link {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    letter-spacing: 0.2px;
+}
+
+.fp-top-advisor-link:hover {
+    color: #1e293b;
+    background: rgba(0, 0, 0, 0.05);
+}
+
 .pwa-btn-wa {
     background: #25D366;
     color: #ffffff;
@@ -1427,22 +1449,20 @@ input[type="range"].fp-slider::-moz-range-thumb {
     padding: 4px;
     margin: 18px 0 20px;
     border: 1px solid var(--border-subtle);
-    gap: 4px;
 }
 
 .fp-auth-tab {
     flex: 1;
-    padding: 8px 6px;
+    padding: 8px 12px;
     border: none;
     background: transparent;
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--text-secondary);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
     text-align: center;
-    white-space: nowrap;
 }
 
 .fp-auth-tab.active {
