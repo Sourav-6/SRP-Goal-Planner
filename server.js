@@ -4,13 +4,7 @@ const app = require('./app');
 
 const PORT = process.env.PORT || 8080;
 
-// Serve static frontend assets for local development
-app.use(express.static(path.join(__dirname)));
-
-// SPA Fallback for local development
-app.use((req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+// app.js handles API routing, static frontend assets, and SPA fallback
 
 // Start Local Server
 const server = app.listen(PORT, () => {
