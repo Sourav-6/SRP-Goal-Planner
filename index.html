@@ -37,16 +37,17 @@
             </div>
             <div class="fp-user-profile-badge">
                 <span id="hdr-user-name" class="fp-user-name">Client</span>
-                <button type="button" class="fp-btn-signout" onclick="handleUserLogout()" title="Sign Out">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <button type="button" id="btn-hdr-signout" class="fp-btn-signout" onclick="handleUserLogout()" title="Sign Out of Session">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    <span>Sign Out</span>
                 </button>
             </div>
         </div>
 
         <div class="pwa-nav-actions">
             <button type="button" id="btn-top-advisor-link" class="fp-top-advisor-link" onclick="openAdvisorLoginModal()" title="Advisor Portal Access">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span>Advisor Access</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>Advisor Login</span>
             </button>
             <button class="pwa-btn-icon" onclick="resetCalculatorDefaults()" title="Reset to Defaults" aria-label="Reset Defaults">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -131,12 +132,15 @@
                     </button>
                 </form>
 
-                <!-- SECRET ADVISOR TOGGLE -->
+                <!-- ADVISOR ACCESS STRIP -->
                 <div class="fp-auth-footer">
-                    <button type="button" class="fp-advisor-toggle-link" onclick="openAdvisorLoginModal()">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15h2"/><path d="M12 11h4"/><path d="M12 7h6"/><path d="M5 21a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"/></svg>
-                        SRP Wealth Advisor Portal Access
-                    </button>
+                    <div class="fp-auth-advisor-strip">
+                        <span class="fp-advisor-strip-text">Advisor or Wealth Partner?</span>
+                        <button type="button" class="fp-btn-advisor-strip" onclick="openAdvisorLoginModal()">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            Advisor Portal Login &rarr;
+                        </button>
+                    </div>
                     <p class="fp-disclaimer">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                         End-to-end encrypted database persistence. AMFI Registered Mutual Fund Distributor.
@@ -304,6 +308,10 @@
                                 </span>
                                 Personal Profile
                             </h3>
+                            <button type="button" class="fp-btn-card-logout" onclick="handleUserLogout()" title="Sign Out of Session">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                <span>Sign Out</span>
+                            </button>
                         </div>
 
                         <!-- Current Age -->
@@ -1101,10 +1109,14 @@
                     <h2 class="fp-modal-title" style="font-size: 20px;">Client Life Plan Roster & Goal Analytics</h2>
                     <p class="fp-modal-subtitle">Track how your clients are structuring their wealth, retirement timelines, and milestone goals.</p>
                 </div>
-                <div style="display: flex; gap: 10px; align-items: center;">
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <button type="button" class="fp-btn-secondary" onclick="refreshAdvisorData()" title="Refresh Data">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                         Refresh
+                    </button>
+                    <button type="button" class="fp-btn-advisor-signout" onclick="handleAdvisorLogout()" title="Advisor Sign Out">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                        Logout
                     </button>
                     <button type="button" class="fp-modal-close" onclick="closeAdvisorDeskModal()">&times;</button>
                 </div>

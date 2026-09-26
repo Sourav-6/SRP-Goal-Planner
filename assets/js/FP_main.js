@@ -2868,6 +2868,11 @@ window.handleUserLogout = function (confirmPrompt = true) {
     if (banner) banner.style.display = 'none';
 };
 
+window.handleAdvisorLogout = function handleAdvisorLogout() {
+    window.closeAdvisorDeskModal();
+    window.handleUserLogout(true);
+};
+
 // ==========================================================================
 // TOAST NOTIFICATION UTILITY
 // ==========================================================================
